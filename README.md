@@ -9,6 +9,8 @@ The application starts from published somatic calls, not raw sequencing. Results
 Python 3.11 or newer is required. With [uv](https://docs.astral.sh/uv/):
 
 ```sh
+git clone https://github.com/adobles96/diy-cancer-vax.git
+cd diy-cancer-vax
 uv sync --locked --extra test
 uv run neovax fetch-data
 uv run neovax tui
@@ -19,7 +21,7 @@ Alternatively, create a virtual environment and install `pip install -e '.[test]
 If the workbooks have already been downloaded, copy and verify them without downloading again:
 
 ```sh
-neovax fetch-data --from-directory /path/to/existing/data/raw
+uv run neovax fetch-data --from-directory /path/to/existing/data/raw
 ```
 
 All data, caches, models, reports, exports, logs and validation artifacts go under **`outputs/`**, which Git ignores. The application never commits them. The original workbooks and model weights are fetched separately rather than redistributed in this repository.
@@ -27,9 +29,9 @@ All data, caches, models, reports, exports, logs and validation artifacts go und
 ## Run without the terminal interface
 
 ```sh
-neovax run --config configs/patient-1.json
-neovax run --config configs/patient-6.json --cached-only
-neovax report outputs/runs/<run-directory>
+uv run neovax run --config configs/patient-1.json
+uv run neovax run --config configs/patient-6.json --cached-only
+uv run neovax report outputs/runs/<run-directory>
 ```
 
 There is a saved default configuration for each patient. Paths inside configuration files are relative to the current working directory, or may be absolute. Each execution creates a new run directory; completed run data is not overwritten by subsequent executions. `report` explicitly regenerates the report and figures for an existing run.
@@ -51,8 +53,8 @@ Discovery inference and historical-sequence rescoring are separate stages. Histo
 The earlier Patient 1 cache can be imported after validating its original inputs and response hashes:
 
 ```sh
-neovax import-cache /path/to/prior/results
-neovax run --config configs/legacy-patient-1.json
+uv run neovax import-cache /path/to/prior/results
+uv run neovax run --config configs/legacy-patient-1.json
 ```
 
 That directory must contain `prediction_input.fasta` plus the eight `iedb_*.json` / `.tsv` pairs. Legacy mode has no binding gate and uses mutation selection with `min`: 79 reconstructed candidates, all 11 historical missense targets, and 4/11 target overlap at budget 11. The five absent transcript versions remain visible.
@@ -65,11 +67,11 @@ The binding installation does not import TensorFlow. Use a separate Python 3.11 
 uv venv --python 3.11 outputs/deepimmuno-env
 uv pip install --python outputs/deepimmuno-env/bin/python \
   tensorflow==2.15.1 'numpy<2' 'pandas<4'
-neovax setup-deepimmuno --python outputs/deepimmuno-env/bin/python
-neovax run --config configs/combined-patient-1.json
+uv run neovax setup-deepimmuno --python outputs/deepimmuno-env/bin/python
+uv run neovax run --config configs/combined-patient-1.json
 ```
 
-The wrapper pins upstream commit `df42ac5b6bddfe531268335e2dcb496559cd488b`, source files and weight hashes, and invokes upstream inference in a separate process. It validates every returned pair and never permits upstream's unsupported-allele substitution. The optional environment was exercised on macOS ARM; other platforms need a compatible TensorFlow installation.
+The wrapper pins upstream commit `df42ac5b6bddfe531268335e2dcb496559cd488b`, source files and weight hashes, and invokes upstream inference in a separate process. It validates every returned pair and blocks upstream's unsupported-allele substitution by default; the cohort script can explicitly enable it as described below. The optional environment was exercised on macOS ARM; other platforms need a compatible TensorFlow installation.
 
 Patient 1 has complete exact allele coverage. The pinned upstream allele table **does not cover all alleles for Patients 2–6**:
 
@@ -81,7 +83,36 @@ Patient 1 has complete exact allele coverage. The pinned upstream allele table *
 | 5 | HLA-A*66:01 |
 | 6 | HLA-A*66:01, HLA-A*01:03 |
 
-Those patients use binding-only mode. Unsupported optional configurations preserve available binding data but produce no combined shortlist. DeepImmuno supports only 9/10-mers and estimates general CD8 immunogenicity propensity, not a patient's TCR recognition or tumor killing. A released training-CSV exact-sequence overlap audit accompanies optional inference; related sequences, other training inputs, model development and NetMHCpan overlap remain unaudited.
+The standard pipeline uses binding-only mode for those patients. Unsupported optional configurations preserve available binding data but produce no combined shortlist. The separate cohort analysis below can explicitly enable upstream allele rescue. DeepImmuno supports only 9/10-mers and estimates general CD8 immunogenicity propensity, not a patient's TCR recognition or tumor killing. A released training-CSV exact-sequence overlap audit accompanies optional inference; related sequences, other training inputs, model development and NetMHCpan overlap remain unaudited.
+
+## Cohort recall comparison
+
+After downloading the sources, caching the six patients' binding predictions, and setting up DeepImmuno:
+
+```sh
+uv run python scripts/cohort_recall.py --rescue-unknown-hla
+uv run python scripts/cohort_recall.py --rescue-unknown-hla --cached-only
+```
+
+To populate the six patients' binding caches first, run `uv run python scripts/validate_cohort.py --live`.
+
+This creates `outputs/cohort-recall/report.html`, plots, per-patient provenance, all mutation rankings, vaccine-component evidence/ranks, and recall at 10–100 targets. Outputs remain ignored by Git. The script only reads cached binding predictions; the first command can run missing DeepImmuno inference. Without the explicit rescue flag, exact allele support is still required.
+
+The comparison selects 50 distinct mutation targets from each patient's independently reconstructed missense candidates. It uses the best IC50 for NetMHCpan and highest DeepImmuno score across mutation-containing 9/10-mers and actual HLA-A/B alleles, with **no binding gate**. The equal-weight ensemble averages the two **mutation-level fractional ranks**, with average ranks for ties. This differs from the standard pipeline's pair-level combination. Final selection ties use genomic mutation ID, without labels.
+
+Recall counts vaccine IMP components recovered by mutation identity. It does not require exact long-peptide sequence recovery. The broad immunogenic endpoint is any positive **week-16 CD4 or CD8 peptide response**, including expanded-cell assays; it does not require minigene, tumor, or killing evidence. Later therapy-associated responses are excluded. Both full-denominator and reconstructable-subset recall are exported. The source tables contain 98 patient/IMP components, versus 97 unique neoantigens in the paper's headline; all 98 table entries are retained, and the unresolved discrepancy is disclosed. Publication gene suffixes can be reconciled only with an exact protein consequence, unique mutation, and full vaccine peptide match to a reconstructed mutant protein.
+
+Rescue follows the pinned upstream numeric-name heuristic, including table-order subtype selection. Every actual-to-model HLA mapping is recorded, and rescued scores have separate cache identities. Binding always uses the actual allele. These results are exploratory: the original vaccine was selected using binding predictions, CD4 responses are outside the direct scope of these class-I models, and model training overlap is incompletely audited.
+
+To measure immunogenicity discrimination within the reconstructable vaccine set, without a top-K cutoff:
+
+```sh
+uv run python scripts/cohort_auc.py
+```
+
+This verifies the saved cohort-score file hashes and writes a separate report, ROC plots, metrics, and target-level score/assay audit to ignored `outputs/cohort-auc/`. Each genomic mutation counts once. A positive label requires any positive week-16 CD4/CD8 peptide assay. A negative label requires explicit measurements in both cell types and all relevant observations negative; incomplete or ambiguous evidence is excluded. Non-vaccine mutations are not labeled negative. Model and ensemble scores are reused unchanged, including the ensemble's normalization over all discovery candidates.
+
+ROC AUC gives equal scores half credit and is undefined if either class is absent. Summaries include the mean patient AUC and an AUC weighted by the number of within-patient positive–negative pairs; the latter never compares scores between patients. These metrics describe discrimination conditional on prior vaccine selection and reconstruction, with small per-patient sample sizes.
 
 ## Scientific boundaries
 

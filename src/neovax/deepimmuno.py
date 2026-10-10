@@ -35,7 +35,31 @@ def setup_model(directory, python):
     return directory / "manifest.json"
 
 
-def validate_model(manifest_path, alleles, lengths):
+def allele_representations(root, alleles):
+    """Mirror the pinned upstream numerical rescue, retaining the actual patient HLA."""
+    with (Path(root) / "data/hla2paratopeTable_aligned.txt").open() as handle:
+        supported = [row["HLA"] for row in csv.DictReader(handle, delimiter="\t")]
+    inventory = {}
+    for allele in supported:
+        inventory.setdefault(allele[4], {}).setdefault(allele[6:8], []).append(allele[8:])
+    result = {}
+    for allele in alleles:
+        compact = allele.replace(":", "")
+        model = compact
+        if compact not in supported:
+            groups = inventory[compact[4]]
+            group, subtype = compact[6:8], compact[8:]
+            if group in groups:
+                subtype = min(groups[group], key=lambda value: abs(int(subtype) - int(value)))
+            else:
+                group = min(groups, key=lambda value: abs(int(group) - int(value)))
+                subtype = groups[group][0]
+            model = f"HLA-{compact[4]}*{group}{subtype}"
+        result[allele] = f"{model[:-2]}:{model[-2:]}"
+    return result
+
+
+def validate_model(manifest_path, alleles, lengths, allow_hla_rescue=False):
     manifest = json.loads(Path(manifest_path).read_text())
     pinned = json.loads(files("neovax").joinpath("resources/deepimmuno_sources.json").read_text())
     if manifest["commit"] != pinned["commit"] or manifest["files"] != pinned["files"]:
@@ -47,7 +71,7 @@ def validate_model(manifest_path, alleles, lengths):
     with (root / "data/hla2paratopeTable_aligned.txt").open() as handle:
         supported = {row["HLA"] for row in csv.DictReader(handle, delimiter="\t")}
     missing = [a for a in alleles if a.replace(":", "") not in supported]
-    if missing or not set(lengths) <= {9, 10}:
+    if (missing and not allow_hla_rescue) or not set(lengths) <= {9, 10}:
         raise ValueError(
             f"DeepImmuno requires exact allele support and 9/10-mers. Unsupported alleles: {missing}. Use binding-only mode."
         )
@@ -70,15 +94,18 @@ def training_overlap(manifest, sequences):
     }
 
 
-def predict_immunogenicity(epitopes, alleles, config, cancel=lambda: False, progress=lambda message: None):
-    manifest = validate_model(config.deepimmuno_manifest, alleles, config.lengths)
+def predict_immunogenicity(
+    epitopes, alleles, config, cancel=lambda: False, progress=lambda message: None, *, allow_hla_rescue=False
+):
+    manifest = validate_model(config.deepimmuno_manifest, alleles, config.lengths, allow_hla_rescue)
     pairs = sorted({(r["peptide"], a) for r in epitopes for a in alleles})
     root = Path(manifest["root"])
-    cache_path = (
-        Path(config.cache_dir)
-        / "deepimmuno"
-        / f"{stable_id(manifest['commit'], manifest['files'], pairs)}.json"
-    )
+    representations = allele_representations(root, alleles)
+    rescued = {a: model for a, model in representations.items() if a != model}
+    cache_identity = [manifest["commit"], manifest["files"], pairs]
+    if rescued:
+        cache_identity.append({"rescue_unknown_hla": rescued})
+    cache_path = Path(config.cache_dir) / "deepimmuno" / f"{stable_id(*cache_identity)}.json"
     if cache_path.exists():
         records = json.loads(cache_path.read_text())["predictions"]
     else:
@@ -129,8 +156,12 @@ def predict_immunogenicity(epitopes, alleles, config, cancel=lambda: False, prog
     ):
         raise InferenceError("DeepImmuno returned incomplete, duplicate or invalid scores")
     if not cache_path.exists():
-        write_json(cache_path, {"model": manifest, "predictions": records})
+        write_json(
+            cache_path, {"model": manifest, "allele_representations": representations, "predictions": records}
+        )
     return result, {
         "model": manifest,
+        "allele_representations": representations,
+        "rescued_alleles": rescued,
         "training_overlap": training_overlap(manifest, [r["peptide"] for r in epitopes]),
     }
