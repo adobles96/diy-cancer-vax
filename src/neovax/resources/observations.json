@@ -1,0 +1,248 @@
+[
+  {
+    "patients": [
+      1
+    ],
+    "target": "RUSC2 / CASP5 neoORF",
+    "cell_type": "CD4",
+    "assay_type": "mutant/reference peptide titration",
+    "target_cell": "see source panel",
+    "timepoint": "post-vaccination",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "The paper describes mutant-selective responses in peptide titration; detailed curves remain figure-level evidence.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Fig. 3a; Extended Data Fig. 4c",
+    "source_url": "https://www.nature.com/articles/nature22991/figures/3"
+  },
+  {
+    "patients": [
+      5
+    ],
+    "target": "COL22A1",
+    "cell_type": "CD8",
+    "assay_type": "mutant/reference peptide titration",
+    "target_cell": "see source panel",
+    "timepoint": "post-vaccination",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "Mutant peptide recognition was observed at low peptide concentrations; numeric curve data are not extracted.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Fig. 3a",
+    "source_url": "https://www.nature.com/articles/nature22991/figures/3"
+  },
+  {
+    "patients": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "target": "peptide pools; no individual-epitope attribution",
+    "cell_type": "CD4/CD8",
+    "assay_type": "intracellular IFN-\u03b3 / TNF / IL-2",
+    "target_cell": "see source panel",
+    "timepoint": "week 16",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "The authors report multifunctional responses to peptide pools. Pool responses cannot establish individual short-epitope specificity.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Extended Data Figs. 2b\u2013d and 3c\u2013d",
+    "source_url": "https://www.nature.com/articles/nature22991"
+  },
+  {
+    "patients": [
+      3
+    ],
+    "target": "VPS16",
+    "cell_type": "CD8",
+    "assay_type": "CD107 degranulation",
+    "target_cell": "see source panel",
+    "timepoint": "week 16",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "Representative increased degranulation following exposure to mutant-minigene-expressing B cells; this is not a direct tumor-killing measurement.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Extended Data Fig. 6c",
+    "source_url": "https://www.nature.com/articles/nature22991"
+  },
+  {
+    "patients": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "target": "selected reactive cell lines; exact per-target details unextracted",
+    "cell_type": "CD8",
+    "assay_type": "HLA class I blocking",
+    "target_cell": "see source panel",
+    "timepoint": "week 16",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "The tested mutant-minigene responses were blocked by a pan-class-I antibody; predicted allele assignments remain distinct from experimentally established restriction.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Extended Data Fig. 6b",
+    "source_url": "https://www.nature.com/articles/nature22991"
+  },
+  {
+    "patients": [
+      5
+    ],
+    "target": "selected CD4 lines; target identities not extracted",
+    "cell_type": "CD4",
+    "assay_type": "tumor-fed dendritic-cell recognition",
+    "target_cell": "see source panel",
+    "timepoint": "post-vaccination",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "CD4 cells recognized autologous dendritic cells exposed to irradiated autologous melanoma cells. This observation does not imply direct tumor-cell recognition.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Fig. 3f",
+    "source_url": "https://www.nature.com/articles/nature22991/figures/3"
+  },
+  {
+    "patients": [
+      1
+    ],
+    "target": "RUSC2",
+    "cell_type": "CD4",
+    "assay_type": "HLA-DR tetramer",
+    "target_cell": "see source panel",
+    "timepoint": "week 16",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "Tetramer-positive circulating CD4 cells were detected ex vivo.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Fig. 4a\u2013b",
+    "source_url": "https://www.nature.com/articles/nature22991/figures/4"
+  },
+  {
+    "patients": [
+      4
+    ],
+    "target": "ARHGAP29",
+    "cell_type": "CD4",
+    "assay_type": "HLA-DR tetramer",
+    "target_cell": "see source panel",
+    "timepoint": "weeks 16 and 24",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "Tetramer-positive CD4 cells were detected, with persistence at week 24.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Ott 2017 Fig. 4a\u2013b; Extended Data Fig. 8c\u2013d",
+    "source_url": "https://www.nature.com/articles/nature22991/figures/4"
+  },
+  {
+    "patients": [
+      3,
+      4,
+      5
+    ],
+    "target": "tetramer-sorted populations; target-level mapping unextracted",
+    "cell_type": "CD4",
+    "assay_type": "longitudinal paired TCR tracking",
+    "target_cell": "see source panel",
+    "timepoint": "priming and boosting",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "Distinct clonotypes appeared during priming and boosting, including clonotypes observed at multiple timepoints. No exhaustive TCR reanalysis is included.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Hu 2021 Fig. 3; Dataset 7",
+    "source_url": "https://www.nature.com/articles/s41591-020-01206-4/figures/3"
+  },
+  {
+    "patients": [
+      2,
+      6
+    ],
+    "target": "tetramer-sorted populations",
+    "cell_type": "CD4",
+    "assay_type": "TCR persistence after checkpoint treatment",
+    "target_cell": "see source panel",
+    "timepoint": "week 16 and post-pembrolizumab",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination followed by pembrolizumab",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "Both persisting and newly detected clonotypes were reported after pembrolizumab. These follow-up results are not vaccine-only outcomes.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Hu 2021 Fig. 4a\u2013c; Dataset 9",
+    "source_url": "https://www.nature.com/articles/s41591-020-01206-4/figures/4"
+  },
+  {
+    "patients": [
+      6
+    ],
+    "target": "MLL",
+    "cell_type": "CD4",
+    "assay_type": "TCR detection in recurrent tumor",
+    "target_cell": "see source panel",
+    "timepoint": "post-vaccination recurrence",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "TCR chains matching circulating clonotypes were detected in the recurrence; antigen reactivity was assessed with expressed TCRs.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Hu 2021 Fig. 4d; Dataset 10",
+    "source_url": "https://www.nature.com/articles/s41591-020-01206-4/figures/4"
+  },
+  {
+    "patients": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "target": "cohort summary; patient-specific clone assignment unextracted",
+    "cell_type": "CD4",
+    "assay_type": "long-term TCR persistence",
+    "target_cell": "see source panel",
+    "timepoint": "more than two years after vaccination",
+    "pre_stimulation": "see source panel",
+    "treatment_context": "vaccination",
+    "result": "not reported",
+    "value": null,
+    "unit": null,
+    "conclusion": "Several vaccine-period TCR pairs were detected at long-term follow-up in the studied subset. Full patient/clone mapping remains in the linked dataset.",
+    "extraction_status": "qualitative; target-level numeric values not extracted",
+    "source_panel": "Hu 2021 Fig. 5c; Dataset 8",
+    "source_url": "https://www.nature.com/articles/s41591-020-01206-4/figures/5"
+  }
+]

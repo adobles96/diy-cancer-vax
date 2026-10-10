@@ -1,0 +1,50 @@
+[
+  {
+    "file": "ott2017_table2.xlsx",
+    "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fnature22991/MediaObjects/41586_2017_BFnature22991_MOESM2_ESM.xlsx",
+    "description": "Ott 2017 publisher Supplementary Table 2",
+    "sha256": "bc537bca05393bad3c29afc04ea130cfe5b0d889dd9445985e3f3a4f6a83f00d",
+    "retrieved": "2026-10-03",
+    "redistribution": "Fetched separately; not bundled with the application"
+  },
+  {
+    "file": "ott2017_table4.xlsx",
+    "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fnature22991/MediaObjects/41586_2017_BFnature22991_MOESM4_ESM.xlsx",
+    "description": "Ott 2017 publisher Supplementary Table 4",
+    "sha256": "c761b08f529ad21f1ff3c3a817a0187ee8913f5605687de4c38a893131e9b3b9",
+    "retrieved": "2026-10-03",
+    "redistribution": "Fetched separately; not bundled with the application"
+  },
+  {
+    "file": "ott2017_table5.xlsx",
+    "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fnature22991/MediaObjects/41586_2017_BFnature22991_MOESM5_ESM.xlsx",
+    "description": "Ott 2017 publisher Supplementary Table 5",
+    "sha256": "9b10a6b6a430a331d88973889caed3cbe9328609774c936c7c2a851f41476b60",
+    "retrieved": "2026-10-03",
+    "redistribution": "Fetched separately; not bundled with the application"
+  },
+  {
+    "file": "ott2017_table6.xlsx",
+    "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fnature22991/MediaObjects/41586_2017_BFnature22991_MOESM6_ESM.xlsx",
+    "description": "Ott 2017 publisher Supplementary Table 6",
+    "sha256": "fe5121ee47c4b577630651bd8218cd3ae20f9d87070a9354b34e282a37fd2dd5",
+    "retrieved": "2026-10-03",
+    "redistribution": "Fetched separately; not bundled with the application"
+  },
+  {
+    "file": "hg19_knownGeneTxPep.txt.gz",
+    "url": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/knownGeneTxPep.txt.gz",
+    "description": "Legacy hg19 transcript protein reference; exact transcript version matching required",
+    "sha256": "c8d9fcf4b1a4501c87af317a8372fa992a5ec13d480a99450c86d80b370b00bc",
+    "retrieved": "2026-10-03",
+    "redistribution": "Fetched separately; not bundled with the application"
+  },
+  {
+    "file": "hu2021_datasets.xlsx",
+    "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41591-020-01206-4/MediaObjects/41591_2020_1206_MOESM3_ESM.xlsx",
+    "description": "Hu 2021 Supplementary Datasets 1\u201313; first six stored rows of each sheet inspected",
+    "sha256": "1a698248a016f95624897954f08600305f57fe71d65ef2f50f5ac43d86884aeb",
+    "retrieved": "2026-10-03",
+    "redistribution": "Fetched separately; not bundled with the application"
+  }
+]

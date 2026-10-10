@@ -1,0 +1,45 @@
+{
+  "commit": "df42ac5b6bddfe531268335e2dcb496559cd488b",
+  "files": [
+    {
+      "file": "LICENSE",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/LICENSE",
+      "sha256": "bd070a3bb0b8559e7731a0f0200994ea05ade1105ac9ec4b2bed5aaaf0dd0e44"
+    },
+    {
+      "file": "deepimmuno-cnn.py",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/deepimmuno-cnn.py",
+      "sha256": "3ea46f6a7a073ad82bbea0080563c2d905feea2aa2deb91c9777be5541eabc5f"
+    },
+    {
+      "file": "data/after_pca.txt",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/data/after_pca.txt",
+      "sha256": "828054c96ab5c90a7acd12dec80758b20f08856ea4ea01ba6eb58051723275dc"
+    },
+    {
+      "file": "data/hla2paratopeTable_aligned.txt",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/data/hla2paratopeTable_aligned.txt",
+      "sha256": "e68f06da97e28df69e80f59faf6a3287350808b3b74aca93849b896587530a1d"
+    },
+    {
+      "file": "data/remove_low_negative/remove0123_sample100.csv",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/data/remove_low_negative/remove0123_sample100.csv",
+      "sha256": "0b48fea68b4d2cd02e91f0100de6e25c293b0ef4605c5e5150df29dc48a6bb05"
+    },
+    {
+      "file": "models/cnn_model_331_3_7/.data-00000-of-00001",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/models/cnn_model_331_3_7/.data-00000-of-00001",
+      "sha256": "6a8c81c535c2647e3d13917545babb3aacabdc18491f10522cf20966da276941"
+    },
+    {
+      "file": "models/cnn_model_331_3_7/.index",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/models/cnn_model_331_3_7/.index",
+      "sha256": "3ee94283eec3af98f43e59ebd2ae124d8f762d57881e2408175c827e31a3af75"
+    },
+    {
+      "file": "models/cnn_model_331_3_7/checkpoint",
+      "url": "https://raw.githubusercontent.com/frankligy/DeepImmuno/df42ac5b6bddfe531268335e2dcb496559cd488b/models/cnn_model_331_3_7/checkpoint",
+      "sha256": "ba7ac3757b9a57bdd3e603acb528728d61a9479fe392a7f343330aad23f22c50"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "patient": 1,
+  "lengths": [
+    9,
+    10
+  ],
+  "threshold": 500.0,
+  "ranking": "combined",
+  "alpha": 0.5,
+  "selection_unit": "epitope",
+  "aggregation": "min",
+  "long_length": 25,
+  "budget": 20,
+  "per_mutation_cap": 1,
+  "cached_only": false,
+  "batch_size": 128,
+  "data_dir": "outputs/data/raw",
+  "cache_dir": "outputs/cache",
+  "output_dir": "outputs/runs",
+  "deepimmuno_manifest": "outputs/models/deepimmuno/manifest.json"
+}
