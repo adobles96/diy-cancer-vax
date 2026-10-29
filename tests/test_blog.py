@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from neovax.blog import predict_retained_binding, recognition_tables, reproduce_blog
+from neovax.blog import pooled_auc_metrics, predict_retained_binding, recognition_tables, reproduce_blog
 from neovax.config import Config
 from neovax.iedb import Cancelled, InferenceError
 
@@ -108,20 +108,19 @@ def test_cached_real_blog_reproduces_saved_results(tmp_path):
         45,
         27,
     )
-    assert [row["macro_auc"] for row in summary["auc"]] == pytest.approx(
-        [
-            0.6261904761904762,
-            0.5228174603174603,
-            0.5509700176366843,
-        ]
+    assert [row["pooled_auc"] for row in summary["auc"]] == pytest.approx(
+        [0.6477366255144033, 0.5012345679012346, 0.5539094650205761]
     )
-    assert [row["within_patient_pair_weighted_auc"] for row in summary["auc"]] == pytest.approx(
-        [
-            0.6555023923444976,
-            0.5119617224880383,
-            0.5645933014354066,
-        ]
-    )
+    assert all(row["positive_negative_pairs"] == 1215 for row in summary["auc"])
+    with (output / "roc-auc-table.csv").open() as handle:
+        auc_rows = list(csv.DictReader(handle))
+    assert [row["Patient"] for row in auc_rows] == ["1", "2", "3", "4", "5", "6", "Overall (pooled)"]
+    for path in [
+        output / "report.html",
+        output / "cohort-auc/report.html",
+        output / "peptide-recognition-roc-auc.svg",
+    ]:
+        assert "pair-weighted" not in path.read_text()
     assert summary["allow_hla_rescue"]
     assert any(summary["rescued_alleles"].values())
     for name in ("vaccine-recall-at-20", "peptide-recognition-roc-auc"):
@@ -136,3 +135,30 @@ def test_cached_real_blog_reproduces_saved_results(tmp_path):
         with (output / "peptide-recognition-table.csv").open() as handle:
             regenerated = list(csv.DictReader(handle))
         assert regenerated == saved
+
+
+def test_pooled_auc_uses_raw_scores_and_cross_patient_pairs():
+    # Both patients rank their positive first, but their raw score scales differ.
+    # All four positive-negative comparisons must count, including across patients.
+    rows = [
+        {"patient": 1, "label": 1, "binding_ic50_nm": 10, "deepimmuno_score": 0.4, "mean_ensemble_cost": 0.1},
+        {"patient": 1, "label": 0, "binding_ic50_nm": 20, "deepimmuno_score": 0.3, "mean_ensemble_cost": 0.4},
+        {
+            "patient": 2,
+            "label": 1,
+            "binding_ic50_nm": 100,
+            "deepimmuno_score": 0.9,
+            "mean_ensemble_cost": 0.4,
+        },
+        {
+            "patient": 2,
+            "label": 0,
+            "binding_ic50_nm": 200,
+            "deepimmuno_score": 0.8,
+            "mean_ensemble_cost": 0.8,
+        },
+    ]
+    aggregate = pooled_auc_metrics(rows)
+    assert [r["pooled_auc"] for r in aggregate] == [0.75, 0.75, 0.875]
+    assert all(r["positive_negative_pairs"] == 4 for r in aggregate)
+    assert aggregate[2]["tied_pairs"] == 1

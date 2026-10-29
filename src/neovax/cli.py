@@ -170,13 +170,13 @@ def print_blog_summary(summary, console):
             LABELS[method],
             f"{row['hits']}/{row['denominator']} ({row['micro_recall']:.1%})",
             f"{recognition['positive']}/{recognition['included']} ({recognition['fraction']:.1%})",
-            f"{auc['within_patient_pair_weighted_auc']:.3f}",
+            f"{auc['pooled_auc']:.3f}",
         )
     console.print(table)
     console.print(
         "Top 20 means distinct mutations, each ranked from its retained 9/10-amino-acid epitopes.\n"
         "¹ Any positive week-16 CD4/CD8 peptide-response assay; only selected, tested vaccine targets.\n"
-        f"² Within-patient pair-weighted AUC on {summary['labeled_targets']} reconstructable tested targets.\n"
+        f"² Pooled AUC across all {summary['labeled_targets']} reconstructable tested targets.\n"
         "Tumor-recognition results use only tested targets and are saved in a separate table."
     )
     console.print(f"\nOpen: {summary['report_path']}", style="green", markup=False, soft_wrap=True)

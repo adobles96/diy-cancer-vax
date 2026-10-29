@@ -92,9 +92,9 @@ def render_auc(output, metrics, aggregate):
         ]
         overall = next(r for r in aggregate if r["method"] == method)
         scores = [r["roc_auc"] for r in rows]
-        scores.extend([overall["macro_auc"], overall["within_patient_pair_weighted_auc"]])
+        scores.append(overall["pooled_auc"])
         ticks = [f"Patient {r['patient']}\n(n = {r['n']})" for r in rows]
-        ticks.extend(["Patient\nmean", "Within-patient\npair-weighted"])
+        ticks.append(f"Overall\n(n = {overall['n']})")
         values[method] = [score if score is not None else 0 for score in scores]
         labels[method] = [f"{score:.3f}" if score is not None else "Undefined" for score in scores]
     grouped_chart(
@@ -105,5 +105,5 @@ def render_auc(output, metrics, aggregate):
         ticks,
         values,
         labels,
-        "Patient mean gives equal weight; pair-weighted compares targets only within patients.",
+        "Overall pools all evaluated vaccine targets across patients, including cross-patient comparisons.",
     )

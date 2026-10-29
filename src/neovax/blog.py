@@ -67,9 +67,10 @@ it is not refitted or renormalized on the vaccine evaluation set. No top-K or bi
 These are mutation-level scores; the best short peptide need not be the experimentally tested peptide.
 AUC is the fraction of positive–negative target pairs correctly ordered, giving score ties half credit.
 ROC curves group equal scores; genomic-ID tie breaks from shortlist generation are not used for AUC.
-Across patients, report the equally weighted mean AUC and a pair-weighted within-patient AUC.
-The latter pools concordance counts but never compares a target from one patient with another patient's
-target. It is not a conventional AUC computed by concatenating all patient scores.
+Overall AUC pools all evaluated vaccine targets across patients, including cross-patient comparisons.
+Use raw IC50 for NetMHCpan (lower is better), raw DeepImmuno score (higher is better), and the
+existing mean fractional-rank cost for the ensemble (lower is better). No scores are refitted or
+renormalized on the evaluated set. The overall denominator is all positive-negative target pairs.
 The estimand is discrimination conditional on vaccination and successful reconstruction. Historical
 binding-based selection still limits generalization to all mutations. These class-I models do not
 directly predict CD4 responses. HLA rescue and training-overlap limitations from the prior run persist.
@@ -254,6 +255,32 @@ def run_cohort_recall(
     return result
 
 
+def pooled_auc_metrics(labeled):
+    """Pool raw model scores (and existing ensemble costs), matching the blog draft."""
+    scores = {
+        "netmhcpan": ("binding_ic50_nm", 1),
+        "deepimmuno": ("deepimmuno_score", -1),
+        "mean_ensemble": ("mean_ensemble_cost", 1),
+    }
+    aggregate = []
+    for method, (field, multiplier) in scores.items():
+        metrics = roc_metrics(
+            [int(row["label"]) for row in labeled],
+            [multiplier * float(row[field]) for row in labeled],
+        )
+        aggregate.append(
+            {
+                "method": method,
+                "aggregation": "pooled across patients",
+                "score_field": field,
+                "cost_multiplier": multiplier,
+                "pooled_auc": metrics.pop("roc_auc"),
+                **{key: value for key, value in metrics.items() if key != "roc_curve"},
+            }
+        )
+    return aggregate
+
+
 def run_cohort_auc(input_dir, output_dir, data_dir=None, progress=lambda message: None, cancel=lambda: False):
     source, output = Path(input_dir).resolve(), Path(output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -292,21 +319,7 @@ def run_cohort_auc(input_dir, output_dir, data_dir=None, progress=lambda message
                     **roc_metrics([r["label"] for r in labeled], [r[f"{method}_cost"] for r in labeled]),
                 }
             )
-    aggregate = []
-    for method in METHODS:
-        group = [r for r in metrics if r["method"] == method and r["roc_auc"] is not None]
-        pairs = sum(r["positive_negative_pairs"] for r in group)
-        credits = sum(r["correctly_ordered_pairs"] + 0.5 * r["tied_pairs"] for r in group)
-        aggregate.append(
-            {
-                "method": method,
-                "patients_with_defined_auc": len(group),
-                "macro_auc": statistics.mean(r["roc_auc"] for r in group) if group else None,
-                "within_patient_pair_weighted_auc": credits / pairs if pairs else None,
-                "correct_pair_credits": credits,
-                "within_patient_pairs": pairs,
-            }
-        )
+    aggregate = pooled_auc_metrics(all_labeled)
     result = {
         "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "methodology": AUC_METHODOLOGY,
@@ -449,19 +462,15 @@ def reproduce_blog(
         )
     positives = sum(r["Positive"] for r in auc_table)
     negatives = sum(r["Negative"] for r in auc_table)
-    for key, label in [
-        ("macro_auc", "Patient mean"),
-        ("within_patient_pair_weighted_auc", "Within-patient pair-weighted"),
-    ]:
-        auc_table.append(
-            {
-                "Patient": label,
-                "Tested targets": len(labeled),
-                "Positive": positives,
-                "Negative": negatives,
-                **{LABELS[r["method"]]: r[key] for r in auc["aggregate"]},
-            }
-        )
+    auc_table.append(
+        {
+            "Patient": "Overall (pooled)",
+            "Tested targets": len(labeled),
+            "Positive": positives,
+            "Negative": negatives,
+            **{LABELS[r["method"]]: r["pooled_auc"] for r in auc["aggregate"]},
+        }
+    )
     for filename, rows in [
         ("peptide-recognition-table", peptide_table),
         ("peptide-recognition-counts", peptide),
@@ -522,10 +531,10 @@ The paper reports 97 unique neoantigens; this source-table denominator discrepan
 or after expansion. Numerator = responding components; denominator = published vaccine components recovered
 by each method, or all published components for NeoVax. A zero denominator has an undefined rate.</p>
 <div class="table">{html_table(peptide_table)}</div>
-<h2>Peptide recognition ROC AUC</h2><img src="peptide-recognition-roc-auc.svg" alt="Per-patient AUC, patient mean, and within-patient pair-weighted aggregate">
+<h2>Peptide recognition ROC AUC</h2><img src="peptide-recognition-roc-auc.svg" alt="Per-patient AUC and overall pooled AUC">
 <p>{len(labeled)} reconstructed vaccine mutations: {positives} positive, {negatives} negative. Negatives require
-explicitly negative CD4 and CD8 measurements. AUC uses no top-20 cutoff. Patient mean and within-patient
-pair-weighted AUC never compare different patients.</p>
+explicitly negative CD4 and CD8 measurements. AUC uses no top-20 cutoff. Overall AUC pools all
+evaluated targets across patients, including cross-patient comparisons.</p>
 <div class="table">{html_table(formatted_auc)}</div>
 <h2>Tumor recognition: tested components only</h2><p>Numerator = components with any positive week-16 CD4/CD8
 autologous tumor assay. Denominator = components with an explicit positive or negative tumor assay in that
