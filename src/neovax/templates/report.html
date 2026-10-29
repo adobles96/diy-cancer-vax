@@ -39,7 +39,7 @@
 <p>Average precision: {{ result.evaluations.cd8.average_precision if result.evaluations.cd8.average_precision is not none else 'undefined (no scored positives)' }} · Precision at {{ result.evaluations.cd8.k }}: {{ result.evaluations.cd8.precision_at_k if result.evaluations.cd8.precision_at_k is not none else 'undefined (empty intersection)' }}</p>
 <div class="split"><div id="pr-chart" class="chart"></div><div id="historical-chart" class="chart"></div></div><p>Historical score rank correlations (Spearman): {% for state, values in result.evaluations.score_correlations.items() %}{{ state }}: {{ values.spearman_rho }} (n={{ values.n }}){% if not loop.last %}; {% endif %}{% endfor %}.</p><h3>Positive rank positions</h3><div id="positive-table"></div><h3>Tested peptides outside the scored intersection</h3><div id="missing-table"></div>
 <details><summary>Training overlap and interpretation limits</summary><pre id="training"></pre><p>No claim of independent model validation is made. No synthesis, formulation, dosing or pooling optimization is included.</p></details></section>
-<footer>One fixed run. Filters and plots operate offline. Change scientific settings in the CLI to create a new run. Companion SVG and PNG figures are in the run’s figures folder.</footer>
+<footer>One fixed run. Filters and plots operate offline. Change scientific settings in the CLI to create a new run. The shortlist is in proposed_vaccine.csv; settings, scores and evidence are consolidated in run.json.</footer>
 </main><script id="run-data" type="application/json">{{ result | tojson }}</script>
 <script>
 const D=JSON.parse(document.getElementById('run-data').textContent);

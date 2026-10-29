@@ -2,7 +2,9 @@
 
 ## Running the pipeline
 
-`./run` opens a short terminal menu. Choose an individual patient or reproduce the blog results. For a patient, accept the defaults or choose the method, epitope lengths, number of targets, long-peptide length and binding cutoff. DeepImmuno and the ensemble also offer HLA rescue: related-allele substitution when exact model support is missing.
+`./run` opens a short terminal menu. Choose an individual patient or reproduce the blog results. For a patient, accept the defaults or choose the method, epitope lengths, number of targets, long-peptide length and a numeric binding cutoff from 10–500 nM. DeepImmuno and the ensemble also offer HLA rescue: related-allele substitution when exact model support is missing.
+
+The cutoff is applied to predicted IC50 for each short peptide–HLA pair; pairs must score strictly below it. Lower IC50 means stronger predicted binding. The 10–500 nM prompt range lets users tighten the existing 500 nM default; it is an interface choice, not a universal biological boundary. Advanced JSON configurations still accept other positive cutoffs or `null` to disable filtering.
 
 Default patient settings are NetMHCpan 4.1 binding affinity, mutation-containing 9/10-mers, IC50 strictly below 500 nM, and up to 20 targets with one proposed 25-amino-acid peptide per mutation. The best retained short epitope drives each selection. Terminal output includes gene, protein change, long peptide, driving epitope, score and historical mutation membership.
 
@@ -51,7 +53,7 @@ The pipeline independently reconstructs missense substitutions from published va
 
 Each candidate short peptide is checked for an exact full-sequence match anywhere in the pinned reference proteome. Matching peptides are removed before scoring. Other peptides from the same mutation remain eligible; a mutation disappears only if no candidates survive. This does not guarantee that the proposed long peptide lacks normal-protein subsequences. Patient germline proteomes are unavailable.
 
-Reference-filter exports include excluded peptides, matching reference transcripts and zero-based half-open protein coordinates. Historical vaccine rescoring is separate from discovery and cannot reintroduce excluded candidates.
+Reference-filter evidence in the report and consolidated run record includes excluded peptides, matching reference transcripts and zero-based half-open protein coordinates. Historical vaccine rescoring is separate from discovery and cannot reintroduce excluded candidates.
 
 ## Metrics and interpretation
 
@@ -67,7 +69,13 @@ Both predictors are class-I models; the broad CD4/CD8 endpoint includes biology 
 
 ## Artifacts and reproducibility
 
-Patient runs save configuration, manifest, variant and exclusion tables, candidate and HLA-pair scores, mutation rankings, proposed and actual vaccine components, assay observations, reference-filter evidence, CSV/FASTA shortlists and an HTML report. Source hashes, model identity, status and export hashes are recorded. Patient HTML reports contain their figures; blog HTML uses neighboring chart files and links to CSV/provenance files.
+Patient runs produce just three files:
+
+- `report.html`: the self-contained interactive report, including candidate rankings, assays and reference-filter evidence.
+- `proposed_vaccine.csv`: one row per selected long peptide, combining sequence, gene, variant, driving epitope/HLA, model scores and historical-match flags.
+- `run.json`: one machine-readable record containing settings, provenance, status, detailed scores, observations and report data. This replaces the separate configuration, manifest, summary, evaluation and run-data JSON files, and supports `./run report <run-directory>`.
+
+Intermediate variant/protein/prediction CSVs, FASTA, and duplicate static figure copies are no longer produced for patient runs. Detailed candidate and assay tables remain in the report/run record; raw inputs and prediction caches remain in their shared storage directories. Existing saved runs are left intact and their reports remain regenerable. The blog workflow retains its publication charts and tables, with HTML linking to neighboring files.
 
 The blog workflow produces `vaccine-recall-at-20` and `peptide-recognition-roc-auc` charts in PNG, SVG and PDF; recognition and ROC-AUC CSV tables; `summary.json`; and detailed `cohort-recall/` and `cohort-auc/` results. It recomputes these from raw data plus validated prediction caches, without needing prior reports or untracked plotting scripts.
 

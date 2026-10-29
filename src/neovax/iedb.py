@@ -140,10 +140,10 @@ class BindingCache:
             target = self.directory / "requests" / request_id
             target.mkdir(parents=True, exist_ok=True)
             write_json(
-                target / "metadata.json", {**metadata, "software_version": __version__, "legacy_import": True}
+                target / "metadata.json",
+                {**metadata, "software_version": __version__, "legacy_import": True, "sequence_text": fasta},
             )
             (target / "response.tsv").write_text(response.read_text())
-            (target / "input.fasta").write_text(fasta)
             self.save(rows, request_id)
             count += len(rows)
         return count
@@ -291,7 +291,6 @@ def predict(
                 break
             path.mkdir(parents=True, exist_ok=True)
             (path / "response.tsv").write_text(response)
-            (path / "input.fasta").write_text(fasta)
             write_json(
                 path / "metadata.json",
                 {

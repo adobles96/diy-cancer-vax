@@ -12,7 +12,7 @@ from pathlib import Path
 import httpx
 from rich import box
 from rich.console import Console
-from rich.prompt import Confirm, IntPrompt, Prompt
+from rich.prompt import Confirm, FloatPrompt, IntPrompt, Prompt
 from rich.table import Table
 
 from neovax.blog import LABELS, reproduce_blog
@@ -82,10 +82,17 @@ def patient_settings(console):
     method = {"1": "binding", "2": "immunogenicity", "3": "combined"}[
         Prompt.ask("Method", choices=["1", "2", "3"], default="1", console=console)
     ]
-    lengths = Prompt.ask("Epitope lengths", choices=["9,10", "9", "10"], default="9,10", console=console)
+    lengths = Prompt.ask("Epitope lengths", choices=["9", "10", "both"], default="both", console=console)
     budget = ask_integer(console, "Maximum mutation targets", 20, 1, 100)
     long_length = ask_integer(console, "Long-peptide length", 25, 15, 30)
-    gate = Prompt.ask("Binding cutoff (nM)", choices=["500", "50", "none"], default="500", console=console)
+    console.print(
+        "Keep peptide–HLA pairs with predicted IC50 below the cutoff. Lower = stricter binding filter."
+    )
+    while True:
+        gate = FloatPrompt.ask("Binding cutoff in nM (10–500)", default=500.0, console=console)
+        if 10 <= gate <= 500:
+            break
+        console.print("Enter a number from 10 to 500.", style="yellow")
     rescue = False
     if method != "binding":
         console.print(
@@ -96,10 +103,10 @@ def patient_settings(console):
     # Attach the actual model manifest after data/model setup, before activating the chosen ranking.
     return Config(
         patient=patient,
-        lengths=tuple(int(n) for n in lengths.split(",")),
+        lengths=(9, 10) if lengths == "both" else (int(lengths),),
         budget=budget,
         long_length=long_length,
-        threshold=None if gate == "none" else float(gate),
+        threshold=gate,
         rescue_unknown_hla=rescue,
     ), method
 
@@ -152,9 +159,7 @@ def print_summary(result, console=None):
     root = Path(summary["run_directory"])
     console.print(f"\nResults: {root}", style="green", markup=False, soft_wrap=True)
     console.print(f"Open: {root / 'report.html'}", markup=False, soft_wrap=True)
-    console.print(
-        "Shortlist: proposed_vaccine.csv and proposed_vaccine.fasta · All scores and evidence saved alongside."
-    )
+    console.print("Shortlist: proposed_vaccine.csv · Settings, scores and evidence: run.json")
 
 
 def print_blog_summary(summary, console):

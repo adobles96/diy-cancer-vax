@@ -27,7 +27,6 @@ def run_pipeline(config, progress=lambda message: None, cancel=lambda: False, ma
         / f"patient-{config.patient}-{now.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
     )
     run_dir.mkdir(parents=True)
-    write_json(run_dir / "config.json", config.to_dict())
     manifest = {
         "status": "running",
         "created_at": now.isoformat(),
@@ -37,21 +36,21 @@ def run_pipeline(config, progress=lambda message: None, cancel=lambda: False, ma
         "coordinate_system": "protein: zero-based half-open; genomic: published GRCh37 coordinates",
         "run_directory": str(run_dir),
     }
-    write_json(run_dir / "manifest.json", manifest)
+    write_json(run_dir / "run.json", {"config": config.to_dict(), "manifest": manifest})
     try:
         result = execute(config, run_dir, manifest, progress, cancel)
     except (OSError, ValueError, KeyError) as error:
         manifest.update(status="failed", errors=[str(error)])
-        write_json(run_dir / "manifest.json", manifest)
+        write_json(run_dir / "run.json", {"config": config.to_dict(), "manifest": manifest})
         raise
     if make_report:
         render_report(run_dir, result)
     manifest["exports"] = {
         p.relative_to(run_dir).as_posix(): digest(p)
         for p in run_dir.rglob("*")
-        if p.is_file() and p.name != "manifest.json"
+        if p.is_file() and p.name != "run.json"
     }
-    write_json(run_dir / "manifest.json", manifest)
+    write_json(run_dir / "run.json", result)
     progress(f"{manifest['status'].capitalize()} · {run_dir}")
     return result
 
@@ -74,11 +73,6 @@ def execute(config, run_dir, manifest, progress, cancel):
         reference_matched_associations_removed=len(filtered),
     )
     progress(f"Reconstructed {len(proteins)} missense rows · {len(epitopes)} epitope associations")
-    write_csv(run_dir / "variants.csv", variants)
-    write_csv(run_dir / "skipped_variants.csv", skipped)
-    write_csv(run_dir / "reconstructed_proteins.csv", proteins)
-    write_csv(run_dir / "reference_filtered_epitopes.csv", filtered)
-    write_json(run_dir / "reference_filter.json", filter_summary)
     cache = BindingCache(config.cache_dir)
     try:
         predictions, workload, status, errors = predict(
@@ -222,42 +216,27 @@ def execute(config, run_dir, manifest, progress, cancel):
         "skipped": skipped,
         "reference_filtered": filtered,
     }
-    for name, rows in [
-        ("epitopes", ranked),
-        ("pair_predictions", pairs),
-        ("mutation_scores", mutation_scores),
-        ("proposed_vaccine", selected),
-        ("actual_vaccine", vaccine),
-        ("assays", assays),
-        ("historical_rescore", historical_rescore),
-    ]:
-        write_csv(run_dir / f"{name}.csv", rows)
-    # Aligned reference scores for every association and allele, not just the winning allele.
+    # The CSV is the usable shortlist; the single run record retains detailed evidence.
+    fields = (
+        "selection_rank",
+        "gene",
+        "protein_change",
+        "mutation_id",
+        "transcript",
+        "sequence",
+        "driving_epitope",
+        "best_allele",
+        "ic50_nm",
+        "deepimmuno_score",
+        "ranking_cost",
+        "historical_target",
+        "short_contained_in_historical",
+        "exact_long_match",
+    )
     write_csv(
-        run_dir / "reference_predictions.csv",
-        [
-            {
-                "epitope_id": e["epitope_id"],
-                "reference_peptide": e["reference_peptide"],
-                "allele": a,
-                "ic50_nm": predictions[(e["reference_peptide"], a)]["ic50"]
-                if (e["reference_peptide"], a) in predictions
-                else None,
-            }
-            for e in epitopes
-            for a in alleles
-        ],
+        run_dir / "proposed_vaccine.csv",
+        [{key: row[key] for key in fields} for row in selected],
+        fields=fields,
     )
-    (run_dir / "proposed_vaccine.fasta").write_text(
-        "".join(
-            f">{r['component_id']} {r['gene']} {r['protein_change']}\n{r['sequence']}\n" for r in selected
-        )
-    )
-    for name, value in [
-        ("manifest", manifest),
-        ("summary", summary),
-        ("evaluations", evaluations),
-        ("run_data", result),
-    ]:
-        write_json(run_dir / f"{name}.json", value)
+    write_json(run_dir / "run.json", result)
     return result

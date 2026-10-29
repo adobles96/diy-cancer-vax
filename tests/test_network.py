@@ -77,6 +77,7 @@ def test_cancel_resume_and_cache_reuse(tmp_path, monkeypatch):
     assert status == "complete" and len(lookup) == 2 and len(calls) == 2
     _, stats, status, _ = predict(cache, sequences, [ALLELE], [9], cached_only=True)
     assert status == "complete" and stats["planned_requests"] == 0 and len(calls) == 2
+    assert not list(tmp_path.rglob("*.fasta"))
     cache.close()
 
 

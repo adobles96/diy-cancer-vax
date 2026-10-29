@@ -27,11 +27,13 @@ When source data is missing, you choose where to store it. The program downloads
 data/
 ├── raw/                 # Published workbooks and reference proteins
 └── outputs/
-    ├── runs/<run>/      # Patient report, shortlist CSV/FASTA and all scores
+    ├── runs/<run>/      # Patient report, shortlist CSV and one run record
     ├── blog/            # Blog report, charts and tables
     ├── cache/           # Reusable predictions
     └── models/          # Downloaded model files
 ```
+
+Each patient run contains just `report.html`, `proposed_vaccine.csv` (sequences, annotations, scores and historical matches), and `run.json` (settings, provenance and detailed results). The report lets you explore candidate rankings and assay evidence without separate intermediate files.
 
 The terminal prints the report location when finished. Data and generated outputs are excluded from Git. Patient reports are self-contained; keep the blog report with its charts and tables.
 
@@ -43,6 +45,6 @@ For repeatable, unattended runs:
 ./run blog --cached-only             # No downloads or new predictions
 ```
 
-Patient defaults use NetMHCpan with a 500 nM binding cutoff. Blog reproduction uses the fixed analysis settings: no binding cutoff, top 20 **mutation targets**, and HLA rescue for unsupported DeepImmuno alleles. See the [guide](docs/guide.md) for definitions and limitations. Python 3.12+ also works for NetMHCpan-only runs; DeepImmuno requires Python 3.11 alongside it.
+Patient defaults use NetMHCpan with a 500 nM binding cutoff. Custom runs accept a numeric cutoff from 10–500 nM; lower values require stronger predicted binding. Blog reproduction uses the fixed analysis settings: no binding cutoff, top 20 **mutation targets**, and HLA rescue for unsupported DeepImmuno alleles. See the [guide](docs/guide.md) for definitions and limitations. Python 3.12+ also works for NetMHCpan-only runs; DeepImmuno requires Python 3.11 alongside it.
 
 This is an exploratory analysis of published research, not instructions for preparing or administering a vaccine. Sources: [Ott et al. (2017)](https://pmc.ncbi.nlm.nih.gov/articles/PMC5577644/) and [Hu et al. (2021)](https://pmc.ncbi.nlm.nih.gov/articles/PMC8273876/).

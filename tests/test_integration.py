@@ -1,4 +1,5 @@
 import copy
+import csv
 import json
 from pathlib import Path
 
@@ -8,7 +9,9 @@ from neovax import pipeline
 from neovax.config import Config
 from neovax.data import actual_vaccine, load_reference, patient_data
 from neovax.deepimmuno import validate_model
+from neovax.io import digest, write_json
 from neovax.peptides import reconstruct
+from neovax.report import render_report
 
 DATA = Path("data/raw")
 CACHE = Path("data/outputs/cache")
@@ -150,6 +153,12 @@ def test_failed_optional_model_preserves_binding_without_combined_metrics(tmp_pa
     assert all(row["ranking_cost"] is None for row in result["pairs"])
     assert result["evaluations"]["cd8"]["intersection_count"] == 0
     assert result["evaluations"]["cd8"]["average_precision"] is None
+    root = Path(result["summary"]["run_directory"])
+    with (root / "proposed_vaccine.csv").open() as handle:
+        shortlist = csv.DictReader(handle)
+        assert "sequence" in shortlist.fieldnames and "ranking_cost" in shortlist.fieldnames
+        assert list(shortlist) == []
+    assert {p.name for p in root.iterdir()} == {"proposed_vaccine.csv", "run.json"}
 
 
 def test_patient2_pipeline_uses_audited_publication_suffixes(tmp_path, monkeypatch):
@@ -179,32 +188,27 @@ def test_patient2_pipeline_uses_audited_publication_suffixes(tmp_path, monkeypat
     assert all("full mutant long-peptide sequence verified" in r["target_join"] for r in repaired)
 
 
-@pytest.mark.parametrize("patient", range(1, 7))
-def test_six_complete_export_runs(patient):
-    summary_path = Path("data/outputs/six-patient-validation.json")
-    if not summary_path.exists():
-        pytest.skip("Six-patient validation run has not been created")
-    summaries = json.loads(summary_path.read_text())
-    summary = next((s for s in summaries if s["patient"] == patient), None)
-    assert summary is not None and summary["status"] == "complete"
-    assert summary["coverage"]["missing_unique_predictions"] == 0
-    root = Path(summary["run_directory"])
-    for filename in [
-        "config.json",
-        "manifest.json",
-        "summary.json",
-        "variants.csv",
-        "skipped_variants.csv",
-        "epitopes.csv",
-        "pair_predictions.csv",
-        "mutation_scores.csv",
-        "proposed_vaccine.csv",
-        "proposed_vaccine.fasta",
-        "actual_vaccine.csv",
-        "assays.csv",
-        "evaluations.json",
-        "report.html",
-        "figures/shortlist.svg",
-        "figures/shortlist.png",
-    ]:
-        assert (root / filename).exists()
+def test_legacy_report_regeneration(legacy_run):
+    root = Path(legacy_run["summary"]["run_directory"])
+    (root / "run.json").rename(root / "run_data.json")
+    write_json(root / "manifest.json", legacy_run["manifest"])
+    report = render_report(root)
+    saved = json.loads((root / "manifest.json").read_text())
+    assert saved["exports"]["report.html"] == digest(report)
+    assert not (root / "figures").exists()
+
+
+def test_failed_run_retains_one_diagnostic_record(tmp_path, monkeypatch):
+    def fail(*args):
+        raise ValueError("Source data is invalid")
+
+    monkeypatch.setattr(pipeline, "execute", fail)
+    with pytest.raises(ValueError, match="Source data"):
+        pipeline.run_pipeline(Config(output_dir=str(tmp_path)))
+    root = next(tmp_path.iterdir())
+    assert [p.name for p in root.iterdir()] == ["run.json"]
+    saved = json.loads((root / "run.json").read_text())
+    assert saved["manifest"]["status"] == "failed"
+    assert saved["config"]["patient"] == 1
+    with pytest.raises(ValueError, match="did not finish"):
+        render_report(root)
