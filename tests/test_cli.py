@@ -196,4 +196,4 @@ def test_custom_cutoff_default_is_visible_and_accepts_enter(monkeypatch):
     output, jobs = menu(monkeypatch, "1\n1\nn\n1\nboth\n20\n25\n\n")
     cli.main()
     assert jobs[0][0].threshold == 500
-    assert "Binding cutoff in nM (10–500) (500.0)" in output.getvalue()
+    assert "pMHC binding affinity cutoff (IC50, nM; 10–500) (500.0)" in output.getvalue()

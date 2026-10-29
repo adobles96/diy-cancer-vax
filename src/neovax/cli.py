@@ -89,7 +89,7 @@ def patient_settings(console):
         "Keep peptide–HLA pairs with predicted IC50 below the cutoff. Lower = stricter binding filter."
     )
     while True:
-        gate = FloatPrompt.ask("Binding cutoff in nM (10–500)", default=500.0, console=console)
+        gate = FloatPrompt.ask("pMHC binding affinity cutoff (IC50, nM; 10–500)", default=500.0, console=console)
         if 10 <= gate <= 500:
             break
         console.print("Enter a number from 10 to 500.", style="yellow")
