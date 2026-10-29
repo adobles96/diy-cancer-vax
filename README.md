@@ -2,7 +2,7 @@
 
 Explore neoantigen selection using published data from six NeoVax patients, or reproduce the charts and tables from the companion blog post.
 
-[Read Alejandro’s Substack](https://substack.com/@alejandro6) · [Usage and methodology](docs/guide.md)
+[Read Alejandro’s Substack](https://substack.com/@alejandro6)
 
 ## Start here
 
@@ -37,14 +37,6 @@ Each patient run contains just `report.html`, `proposed_vaccine.csv` (sequences,
 
 The terminal prints the report location when finished. Data and generated outputs are excluded from Git. Patient reports are self-contained; keep the blog report with its charts and tables.
 
-For repeatable, unattended runs:
-
-```sh
-./run --patient 2 --data-root ./data
-./run blog --data-root ./data
-./run blog --cached-only             # No downloads or new predictions
-```
-
-Patient defaults use NetMHCpan with a 500 nM binding cutoff. Custom runs accept a numeric cutoff from 10–500 nM; lower values require stronger predicted binding. Blog reproduction uses the fixed analysis settings: no binding cutoff, top 20 **mutation targets**, and HLA rescue for unsupported DeepImmuno alleles. See the [guide](docs/guide.md) for definitions and limitations. Python 3.12+ also works for NetMHCpan-only runs; DeepImmuno requires Python 3.11 alongside it.
+Patient runs default to a 500 nM pMHC binding affinity cutoff. Blog reproduction uses fixed settings: no binding cutoff, top 20 **mutation targets**, and approximate HLA substitutions where DeepImmuno lacks exact support. Metric definitions, model details and limitations are included in the generated reports.
 
 This is an exploratory analysis of published research, not instructions for preparing or administering a vaccine. Sources: [Ott et al. (2017)](https://pmc.ncbi.nlm.nih.gov/articles/PMC5577644/) and [Hu et al. (2021)](https://pmc.ncbi.nlm.nih.gov/articles/PMC8273876/).
