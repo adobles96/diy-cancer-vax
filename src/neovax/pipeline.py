@@ -7,6 +7,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from neovax import __version__
+from neovax.cohort import audit_components
 from neovax.data import actual_vaccine, load_reference, patient_data, verify_sources
 from neovax.deepimmuno import predict_immunogenicity
 from neovax.evaluation import annotate_membership, assay_matrix, evaluate, rescore_historical
@@ -103,7 +104,9 @@ def execute(config, run_dir, manifest, progress, cancel):
     immuno, immuno_metadata, ranking_available = {}, None, True
     if config.ranking != "binding" and status != "cancelled":
         try:
-            immuno, immuno_metadata = predict_immunogenicity(epitopes, alleles, config, cancel, progress)
+            immuno, immuno_metadata = predict_immunogenicity(
+                epitopes, alleles, config, cancel, progress, allow_hla_rescue=config.rescue_unknown_hla
+            )
         except (InferenceError, ValueError, OSError) as error:
             status = "cancelled" if isinstance(error, Cancelled) else "partial"
             errors.append(str(error))
@@ -122,7 +125,7 @@ def execute(config, run_dir, manifest, progress, cancel):
     mutation_scores = summarize_mutations(ranked, config.aggregation)
     selected, selection_summary = select_vaccine(ranked, mutation_scores, proteins, config)
     # Historical labels enter only after every discovery prediction, rank and selection is fixed.
-    vaccine = actual_vaccine(published, variants, proteins)
+    vaccine = audit_components(actual_vaccine(published, variants, proteins), proteins, assays)
     if status != "cancelled":
         progress("Comparison: rescoring published long sequences separately from discovery")
         historical_sequences = {r["immunizing_sequence"] for r in vaccine}

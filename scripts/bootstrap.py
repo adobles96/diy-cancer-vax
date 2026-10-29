@@ -18,7 +18,7 @@ def main():
         print("Creating a local Python environment in .venv/ ...", flush=True)
         venv.EnvBuilder(with_pip=True, symlinks=os.name != "nt").create(environment)
     if not stamp.exists() or stamp.read_text() != requirements:
-        print("Installing NeoVax and its dependencies (first run or changed requirements) ...", flush=True)
+        print("Installing DIY Cancer Vaccine and its dependencies (first run or changed requirements) ...", flush=True)
         pip_check = subprocess.run(
             [str(python), "-m", "pip", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
@@ -30,7 +30,7 @@ def main():
         )
         stamp.write_text(requirements)
     arguments = sys.argv[1:]
-    if not arguments or (arguments[0].startswith("-") and arguments[0] not in {"-h", "--help"}):
+    if arguments and arguments[0].startswith("-") and arguments[0] not in {"-h", "--help"}:
         arguments = ["run", *arguments]
     os.chdir(root)
     os.execv(str(python), [str(python), "-m", "neovax.cli", *arguments])

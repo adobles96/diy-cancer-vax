@@ -1,3 +1,3 @@
-"""NeoVax Explorer: exploratory retrospective comparison."""
+"""DIY Cancer Vaccine: exploratory retrospective comparison."""
 
 __version__ = "0.1.0"

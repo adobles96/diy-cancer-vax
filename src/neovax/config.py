@@ -22,6 +22,7 @@ class Config:
     cache_dir: str = "data/outputs/cache"
     output_dir: str = "data/outputs/runs"
     deepimmuno_manifest: str | None = None
+    rescue_unknown_hla: bool = False
 
     def __post_init__(self):
         object.__setattr__(self, "lengths", tuple(sorted(set(self.lengths))))

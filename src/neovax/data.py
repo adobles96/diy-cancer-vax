@@ -35,17 +35,21 @@ def source_manifest():
     return json.loads(files("neovax").joinpath("resources/sources.json").read_text())
 
 
-def fetch_data(destination, local_source=None):
+def fetch_data(destination, local_source=None, progress=lambda message: None):
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
     for source in source_manifest():
         path = destination / source["file"]
         if path.exists() and digest(path) == source["sha256"]:
+            progress(f"  Found and verified {path.name}; reusing it.")
             continue
         temporary = path.with_suffix(f"{path.suffix}.download")
         if local_source:
+            progress(f"  Copying {path.name} from {local_source}")
             shutil.copyfile(Path(local_source) / source["file"], temporary)
         else:
+            reason = "Checksum changed" if path.exists() else "Not found"
+            progress(f"  {reason}: {path.name}. Downloading…")
             with httpx.stream("GET", source["url"], follow_redirects=True, timeout=120) as response:
                 response.raise_for_status()
                 with temporary.open("wb") as handle:
@@ -55,6 +59,7 @@ def fetch_data(destination, local_source=None):
             temporary.unlink()
             raise ValueError(f"Hash mismatch for {source['file']}; the pinned reference may have changed")
         temporary.replace(path)
+        progress(f"  Verified {path.name}.")
     verify_sources(destination)
 
 

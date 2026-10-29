@@ -129,6 +129,8 @@ def predict_immunogenicity(
         records = json.loads(cache_path.read_text())["predictions"]
     else:
         records = cached_prediction_subset(cache_path.parent, manifest, pairs, representations)
+    if records is not None:
+        progress(f"DeepImmuno: reusing {len(records)} cached peptide–HLA scores")
     if records is None:
         if config.cached_only:
             raise InferenceError("DeepImmuno scores are not cached; binding results remain available")

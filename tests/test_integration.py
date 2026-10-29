@@ -152,6 +152,33 @@ def test_failed_optional_model_preserves_binding_without_combined_metrics(tmp_pa
     assert result["evaluations"]["cd8"]["average_precision"] is None
 
 
+def test_patient2_pipeline_uses_audited_publication_suffixes(tmp_path, monkeypatch):
+    forwarded = []
+
+    def unavailable_model(epitopes, alleles, config, cancel, progress, *, allow_hla_rescue):
+        forwarded.append(allow_hla_rescue)
+        raise ValueError("Test model unavailable")
+
+    monkeypatch.setattr(pipeline, "predict_immunogenicity", unavailable_model)
+    result = pipeline.run_pipeline(
+        Config(
+            patient=2,
+            ranking="combined",
+            deepimmuno_manifest="fixture",
+            rescue_unknown_hla=True,
+            cached_only=True,
+            output_dir=str(tmp_path),
+        ),
+        make_report=False,
+    )
+    assert forwarded == [True]
+    assert result["summary"]["overlap"]["reconstructable_historical_mutations"] == 10
+    repaired = [r for r in result["actual"] if r["gene"] in {"C14orf101a", "C14orf101b"}]
+    assert len(repaired) == 2
+    assert all(r["reconstructable"] and r["mutation_id"] for r in repaired)
+    assert all("full mutant long-peptide sequence verified" in r["target_join"] for r in repaired)
+
+
 @pytest.mark.parametrize("patient", range(1, 7))
 def test_six_complete_export_runs(patient):
     summary_path = Path("data/outputs/six-patient-validation.json")
