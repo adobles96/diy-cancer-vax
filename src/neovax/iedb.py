@@ -13,7 +13,6 @@ import httpx
 
 from neovax import __version__
 from neovax.io import digest, write_json
-from neovax.peptides import AMINO_ACIDS
 
 ENDPOINT = "https://tools-cluster-interface.iedb.org/tools_api/mhci/"
 METHOD = "netmhcpan_ba-4.1"
@@ -157,25 +156,6 @@ def parse_fasta(text):
         else:
             sequences[-1] += line.strip()
     return sequences
-
-
-def contexts_for(proteins, lengths):
-    sequences = set()
-    flank = max(lengths) - 1
-    for protein in proteins:
-        p = protein["position"]
-        for state in ("mutant_protein", "reference_protein"):
-            sequence = protein[state][max(0, p - flank) : p + flank + 1]
-            if not set(sequence) - AMINO_ACIDS:
-                sequences.add(sequence)
-            else:
-                # Preserve valid windows when an ambiguous residue occurs elsewhere in context.
-                for length in lengths:
-                    for start in range(max(0, p - length + 1), min(p, len(protein[state]) - length) + 1):
-                        window = protein[state][start : start + length]
-                        if not set(window) - AMINO_ACIDS:
-                            sequences.add(window)
-    return sorted(sequences)
 
 
 def plan_batches(sequences, alleles, lengths, lookup, batch_size):

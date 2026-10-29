@@ -1,4 +1,0 @@
-# Install only into a separate Python 3.11 environment.
-tensorflow==2.15.1
-numpy==1.26.4
-pandas==3.0.6

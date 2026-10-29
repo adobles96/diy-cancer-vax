@@ -29,7 +29,7 @@ def read_csv(path):
         return list(csv.DictReader(handle))
 
 
-def candidate_context(baseline, pair_file, labels_file):
+def candidate_context(baseline, labels_file):
     hashes = json.loads((baseline / "artifact-hashes.json").read_text())
     for name in ["analysis.json", "vaccine-component-audit.csv", "target-rankings.csv"]:
         if digest(baseline / name) != hashes[name]:
@@ -38,9 +38,8 @@ def candidate_context(baseline, pair_file, labels_file):
     targets = read_csv(baseline / "target-rankings.csv")
     components = read_csv(baseline / "vaccine-component-audit.csv")
     labels = read_csv(labels_file)
-    actual_pairs = {(r["peptide"], normalize_hla(r["allele"])) for r in read_csv(pair_file)}
     reference = load_reference(metadata["patients"][0]["config"]["data_dir"])
-    patients, reconstructed_pairs = {}, set()
+    patients, actual_pairs = {}, set()
     by_sequence = defaultdict(list)
     payloads = defaultdict(list)
     for saved in metadata["patients"]:
@@ -57,7 +56,7 @@ def candidate_context(baseline, pair_file, labels_file):
             raise ValueError(f"Reconstructed mutations disagree with baseline for P{patient}")
         normalized = {normalize_hla(a) for a in alleles}
         pairs = {(p, a) for p in mutations for a in normalized}
-        reconstructed_pairs.update(pairs)
+        actual_pairs.update(pairs)
         patients[patient] = {
             "patient": patient, "candidate_sequences": len(mutations), "candidate_pairs": len(pairs),
             "candidate_mutations": len(expected), "alleles": sorted(alleles),
@@ -71,12 +70,10 @@ def candidate_context(baseline, pair_file, labels_file):
             for length in range(1, len(sequence) + 1):
                 for start in range(len(sequence) - length + 1):
                     payloads[sequence[start:start + length]].append((patient, row["imp_id"], normalized))
-    if reconstructed_pairs != actual_pairs:
-        raise ValueError("Reconstructed actual peptide-HLA pairs differ from saved candidate inputs")
     target_ids = {(int(r["patient"]), r["mutation_id"]) for r in targets}
     if any((int(r["patient"]), r["mutation_id"]) not in target_ids for r in labels):
         raise ValueError("An evaluation label does not map to a reconstructed candidate target")
-    inputs = {str(pair_file): digest(pair_file), str(labels_file): digest(labels_file)}
+    inputs = {str(labels_file): digest(labels_file)}
     inputs.update({str(baseline / n): hashes[n] for n in [
         "analysis.json", "vaccine-component-audit.csv", "target-rankings.csv",
     ]})
@@ -164,16 +161,15 @@ def summarize(matches):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, default=Path("data/outputs/training-overlap/netmhcpan/NetMHCpan_train.tar.gz"))
-    parser.add_argument("--baseline-dir", type=Path, default=Path("data/outputs/cohort-recall"))
-    parser.add_argument("--candidate-pairs", type=Path, default=Path("data/outputs/bigmhc-pilot/candidate-pairs.csv"))
-    parser.add_argument("--labels", type=Path, default=Path("data/outputs/cohort-auc/labeled-targets.csv"))
+    parser.add_argument("--baseline-dir", type=Path, default=Path("data/outputs/blog/cohort-recall"))
+    parser.add_argument("--labels", type=Path, default=Path("data/outputs/blog/cohort-auc/labeled-targets.csv"))
     parser.add_argument("--output-dir", type=Path, default=Path("data/outputs/training-overlap/netmhcpan"))
     args = parser.parse_args()
     archive_hash = digest(args.archive)
     if archive_hash != ARCHIVE_SHA256:
         raise ValueError(f"NetMHCpan-4.1 archive SHA256 mismatch: {archive_hash}")
     patients, by_sequence, payloads, labels, pairs, inputs, components, reference = candidate_context(
-        args.baseline_dir, args.candidate_pairs, args.labels,
+        args.baseline_dir, args.labels,
     )
     matches, payload_matches, inventory, allele_map = scan_archive(args.archive, by_sequence, payloads)
     payload_sequences = {r["peptide"] for r in payload_matches}
