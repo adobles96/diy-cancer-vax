@@ -82,3 +82,8 @@ def coverage(variants, proteins, skipped, epitopes):
         "unique_mutant_epitopes": len({r["peptide"] for r in epitopes}),
         "skipped_reasons": dict(Counter(r["reason"] for r in skipped)),
     }
+
+
+def epitope_sequences(epitopes):
+    """Binding inputs for retained candidates and their aligned reference comparators."""
+    return sorted({r[field] for r in epitopes for field in ("peptide", "reference_peptide")})

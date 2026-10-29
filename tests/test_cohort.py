@@ -103,12 +103,12 @@ def test_numerical_rescue_keeps_upstream_table_order(tmp_path):
 
 @pytest.mark.integration
 def test_real_cohort_denominators_and_rescue():
-    if not Path("outputs/data/raw/ott2017_table5.xlsx").exists():
+    if not Path("data/raw/ott2017_table5.xlsx").exists():
         pytest.skip("Downloaded sources unavailable")
     counts, available, positive = [], [], []
     for patient in range(1, 7):
-        variants, alleles, published, assays = patient_data("outputs/data/raw", patient)
-        proteins, _ = reconstruct(variants, load_reference("outputs/data/raw"))
+        variants, alleles, published, assays = patient_data("data/raw", patient)
+        proteins, _ = reconstruct(variants, load_reference("data/raw"))
         components = audit_components(actual_vaccine(published, variants, proteins), proteins, assays)
         candidates = {r["mutation_id"] for r in enumerate_epitopes(proteins, (9, 10))}
         counts.append(len(components))
@@ -117,7 +117,7 @@ def test_real_cohort_denominators_and_rescue():
     assert counts == [13, 17, 14, 14, 20, 20]
     assert available == [11, 10, 12, 9, 15, 15]
     assert positive == [9, 11, 9, 9, 11, 14]
-    manifest = "outputs/models/deepimmuno/manifest.json"
+    manifest = "data/outputs/models/deepimmuno/manifest.json"
     if Path(manifest).exists():
         with pytest.raises(ValueError, match="exact allele"):
             validate_model(manifest, alleles, (9, 10))

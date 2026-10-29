@@ -28,9 +28,10 @@ from textual.widgets import (
 
 from neovax.config import Config
 from neovax.data import load_reference, patient_data
-from neovax.iedb import BindingCache, contexts_for, plan_batches
-from neovax.peptides import reconstruct
+from neovax.iedb import BindingCache, plan_batches
+from neovax.peptides import enumerate_epitopes, epitope_sequences, reconstruct
 from neovax.pipeline import run_pipeline
+from neovax.reference_filter import filter_reference_peptides
 
 
 class DetailScreen(ModalScreen):
@@ -231,6 +232,7 @@ class NeoVaxApp(App):
                         ("Mutations", "mutations"),
                         ("Actual vaccine", "actual"),
                         ("Assays", "assays"),
+                        ("Reference matches", "reference_filtered"),
                     ]:
                         with TabPane(title, id=f"tab-{name}"):
                             yield DataTable(id=f"table-{name}", cursor_type="row")
@@ -249,11 +251,15 @@ class NeoVaxApp(App):
         try:
             for patient in range(1, 7):
                 variants, alleles, published, _ = patient_data(self.config.data_dir, patient)
-                proteins, _skipped = reconstruct(variants, load_reference(self.config.data_dir))
+                reference = load_reference(self.config.data_dir)
+                proteins, _skipped = reconstruct(variants, reference)
+                epitopes, _filtered, filter_summary = filter_reference_peptides(
+                    enumerate_epitopes(proteins, self.config.lengths), reference
+                )
                 cache = BindingCache(self.config.cache_dir)
                 try:
                     batches = plan_batches(
-                        contexts_for(proteins, self.config.lengths),
+                        epitope_sequences(epitopes),
                         alleles,
                         self.config.lengths,
                         cache.lookup(alleles),
@@ -261,7 +267,7 @@ class NeoVaxApp(App):
                     )
                 finally:
                     cache.close()
-                card = f"{', '.join(alleles)}\n{len(proteins)}/{len(variants)} variant rows reconstructed\n{len({r['imp_id'] for r in published})} actual vaccine components\n{len(batches)} binding requests uncached"
+                card = f"{', '.join(alleles)}\n{len(proteins)}/{len(variants)} variant rows reconstructed\n{len({r['imp_id'] for r in published})} actual vaccine components\n{filter_summary['unique_peptides_removed']} reference-matching peptides excluded\n{len(batches)} binding requests uncached"
                 self.card_data[patient] = card
                 self.call_from_thread(self.query_one(f"#card-{patient}", Static).update, card)
         except (OSError, ValueError, KeyError) as error:
@@ -406,6 +412,7 @@ class NeoVaxApp(App):
             "mutations": ["gene", "protein_change", "ranking_cost", "eligible_epitopes", "total_epitopes"],
             "actual": ["imp_id", "gene", "immunizing_sequence", "reconstructable"],
             "assays": ["gene", "cell_type", "assay_type", "timepoint", "result", "sequence"],
+            "reference_filtered": ["gene", "protein_change", "peptide", "reference_matches"],
         }[active]
         table = self.query_one(f"#table-{active}", DataTable)
         table.clear(columns=True)

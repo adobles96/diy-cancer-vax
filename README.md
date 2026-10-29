@@ -6,32 +6,57 @@ The application starts from published somatic calls, not raw sequencing. Results
 
 ## Start
 
-Python 3.11 or newer is required. With [uv](https://docs.astral.sh/uv/):
+With Python 3.11 or newer installed, three commands run Patient 1 through the pipeline:
 
 ```sh
 git clone https://github.com/adobles96/diy-cancer-vax.git
 cd diy-cancer-vax
-uv sync --locked --extra test
-uv run neovax fetch-data
-uv run neovax tui
+./run
 ```
 
-Alternatively, create a virtual environment and install `pip install -e '.[test]'`. The source manifest downloads approximately 255 MB of workbooks and reference proteins. Downloads are checked against pinned SHA-256 hashes. No other workspace is required.
+The launcher detects Python, creates a local `.venv/`, and installs dependencies using standard `venv` and `pip`. No environment activation or package-manager command is required. Dependencies are installed on the first launch and when `pyproject.toml` changes; subsequent launches reuse the environment.
+
+If source data is missing, it asks for a **data directory** (default: `data/`). It creates `raw/` and `outputs/` underneath that directory, downloads approximately 255 MB of pinned workbooks and reference proteins, and runs the pipeline. Existing valid inputs and prediction caches are reused. The directory choice is remembered in Git-ignored `.neovax.json`; `--data-root` changes it. The first prediction run contacts the public IEDB service. Progress, the proposed shortlist, and report paths appear in the terminal.
+
+```sh
+./run --patient 3                  # Run another patient
+./run tui                          # Open the interactive interface
+./run --data-root /path/to/data     # Choose storage without a prompt
+./run --cached-only                # Verify local data and use cached predictions only
+./run --help                       # List CLI commands
+```
+
+For noninteractive first runs, supply `--data-root`. Saved configuration files keep their own paths unless explicitly overridden with `--data-root`. The launcher runs from the repository directory, so its relative paths are consistent. On Windows, use `py -3.11 scripts/bootstrap.py` in place of `./run`.
+
+Prefer your own environment? Install with `python -m pip install -e .` and use `neovax run` or `neovax tui` directly; the same data setup applies. `uv` remains optional: `uv sync --locked` and `uv run neovax run` use the checked-in lockfile. The default pip launcher follows the dependency ranges in `pyproject.toml`; it does not enforce that lockfile. No other workspace is required.
 
 If the workbooks have already been downloaded, copy and verify them without downloading again:
 
 ```sh
-uv run neovax fetch-data --from-directory /path/to/existing/data/raw
+./run fetch-data --from-directory /path/to/existing/data/raw
 ```
 
-All data, caches, models, reports, exports, logs and validation artifacts go under **`outputs/`**, which Git ignores. The application never commits them. The original workbooks and model weights are fetched separately rather than redistributed in this repository.
+Local data lives under **`data/`**, with source inputs separate from generated files:
+
+```text
+data/
+├── raw/          # Pinned source workbooks and reference protein sequences
+└── outputs/      # Generated results, caches, models, logs and validation artifacts
+    ├── cache/    # Normalized source catalog and prediction caches
+    ├── runs/     # Individual patient runs and HTML reports
+    ├── cohort-recall/
+    ├── cohort-auc/
+    └── blog/     # Figures and tables for the blog
+```
+
+Both `data/raw/` and `data/outputs/` are ignored by Git. The original workbooks and model weights are fetched separately rather than redistributed in this repository.
 
 ## Run without the terminal interface
 
 ```sh
-uv run neovax run --config configs/patient-1.json
-uv run neovax run --config configs/patient-6.json --cached-only
-uv run neovax report outputs/runs/<run-directory>
+./run --config configs/patient-1.json
+./run --config configs/patient-6.json --cached-only
+./run report data/outputs/runs/<run-directory>
 ```
 
 There is a saved default configuration for each patient. Paths inside configuration files are relative to the current working directory, or may be absolute. Each execution creates a new run directory; completed run data is not overwritten by subsequent executions. `report` explicitly regenerates the report and figures for an existing run.
@@ -39,6 +64,10 @@ There is a saved default configuration for each patient. Paths inside configurat
 Defaults: 9/10-mers, published deduplicated HLA-A/B alleles, pinned `netmhcpan_ba-4.1`, mutant IC50 **strictly below 500 nM**, binding ranking, at most one component per genomic mutation, 25-residue long peptides, and a budget of up to 20. No candidate RNA filter is applied. Setting `threshold` to `null` disables the binding gate.
 
 Optional settings include 8–11-mers for binding, mutation selection with `min`/`mean`/`median`, a per-mutation cap, long lengths 15–30, and a configurable combined-ranking weight. Shortlist exhaustion produces an explicit shortfall rather than ineligible filler.
+
+After rolling-window generation, an always-on **reference-proteome filter** removes any mutant short peptide whose entire amino-acid sequence occurs anywhere in the pinned UCSC hg19 protein reference (`hg19_knownGeneTxPep.txt.gz`, 63,691 transcript protein records). This includes alternate isoforms and other locations in the source protein. Matching is exact and length-specific: a normal 9-mer does not by itself exclude a longer 10-mer. Protein boundaries and ambiguous residues are not crossed or treated as wildcards. This uses the annotated reference proteins, not a six-frame translation of the genome or patient-specific germline data; absent matches do not establish tumor specificity.
+
+Only retained candidates enter discovery scoring, ranking and selection. Their aligned wild-type comparators remain available, and historical vaccine rescores remain separate. Each run exports `reference_filter.json` (counts and source hash) and `reference_filtered_epitopes.csv` (every excluded association with matching transcript IDs and zero-based, half-open protein coordinates). The TUI has a Reference matches tab, and HTML reports show the filter counts and evidence. A mutation is removed from ranking only if no candidate peptides survive.
 
 In the TUI, choose a patient, edit settings, and press **Ctrl+R**. **Ctrl+C** requests cancellation after the current request. The Explore tabs support gene/sequence search, membership/evidence filters, pagination and **Enter** for details. **O** opens the report. **Q** cancels an active run; press it again after exports finish to exit. Narrow terminals can scroll the cards and configuration.
 
@@ -53,8 +82,8 @@ Discovery inference and historical-sequence rescoring are separate stages. Histo
 The earlier Patient 1 cache can be imported after validating its original inputs and response hashes:
 
 ```sh
-uv run neovax import-cache /path/to/prior/results
-uv run neovax run --config configs/legacy-patient-1.json
+./run import-cache /path/to/prior/results
+./run --config configs/legacy-patient-1.json
 ```
 
 That directory must contain `prediction_input.fasta` plus the eight `iedb_*.json` / `.tsv` pairs. Legacy mode has no binding gate and uses mutation selection with `min`: 79 reconstructed candidates, all 11 historical missense targets, and 4/11 target overlap at budget 11. The five absent transcript versions remain visible.
@@ -64,11 +93,11 @@ That directory must contain `prediction_input.fasta` plus the eight `iedb_*.json
 The binding installation does not import TensorFlow. Use a separate Python 3.11 environment:
 
 ```sh
-uv venv --python 3.11 outputs/deepimmuno-env
-uv pip install --python outputs/deepimmuno-env/bin/python \
+python3.11 -m venv data/outputs/deepimmuno-env
+data/outputs/deepimmuno-env/bin/python -m pip install \
   tensorflow==2.15.1 'numpy<2' 'pandas<4'
-uv run neovax setup-deepimmuno --python outputs/deepimmuno-env/bin/python
-uv run neovax run --config configs/combined-patient-1.json
+./run setup-deepimmuno --python data/outputs/deepimmuno-env/bin/python
+./run --config configs/combined-patient-1.json
 ```
 
 The wrapper pins upstream commit `df42ac5b6bddfe531268335e2dcb496559cd488b`, source files and weight hashes, and invokes upstream inference in a separate process. It validates every returned pair and blocks upstream's unsupported-allele substitution by default; the cohort script can explicitly enable it as described below. The optional environment was exercised on macOS ARM; other platforms need a compatible TensorFlow installation.
@@ -87,18 +116,18 @@ The standard pipeline uses binding-only mode for those patients. Unsupported opt
 
 ## Cohort recall comparison
 
-After downloading the sources, caching the six patients' binding predictions, and setting up DeepImmuno:
+After running `./run` and setting up DeepImmuno, cache the six patients' binding predictions and run the cohort scripts. These commands use the default `data/` layout:
 
 ```sh
-uv run python scripts/cohort_recall.py --rescue-unknown-hla
-uv run python scripts/cohort_recall.py --rescue-unknown-hla --cached-only
+.venv/bin/python scripts/cohort_recall.py --rescue-unknown-hla
+.venv/bin/python scripts/cohort_recall.py --rescue-unknown-hla --cached-only
 ```
 
-To populate the six patients' binding caches first, run `uv run python scripts/validate_cohort.py --live`.
+To populate the six patients' binding caches first, run `.venv/bin/python scripts/validate_cohort.py --live`.
 
-This creates `outputs/cohort-recall/report.html`, plots, per-patient provenance, all mutation rankings, vaccine-component evidence/ranks, and recall at 10–100 targets. Outputs remain ignored by Git. The script only reads cached binding predictions; the first command can run missing DeepImmuno inference. Without the explicit rescue flag, exact allele support is still required.
+This creates `data/outputs/cohort-recall/report.html`, plots, per-patient provenance, all mutation rankings, vaccine-component evidence/ranks, and recall at 10–100 targets. The same reference-proteome filter runs before cohort scoring and exports `reference-filter-summary.json` and `reference-filtered-epitopes.csv`. Conditional recall and AUC use the retained, scoreable target set. Outputs remain ignored by Git. The script only reads cached binding predictions; the first command can run missing DeepImmuno inference. Previously cached DeepImmuno batches can supply a filtered subset only when model hashes and actual-to-model allele mappings agree. Without the explicit rescue flag, exact allele support is still required.
 
-The comparison selects 50 distinct mutation targets from each patient's independently reconstructed missense candidates. It uses the best IC50 for NetMHCpan and highest DeepImmuno score across mutation-containing 9/10-mers and actual HLA-A/B alleles, with **no binding gate**. The equal-weight ensemble averages the two **mutation-level fractional ranks**, with average ranks for ties. This differs from the standard pipeline's pair-level combination. Final selection ties use genomic mutation ID, without labels.
+The comparison selects **20 distinct mutation targets** from each patient's independently reconstructed missense candidates, representing one vaccine component per mutation. It uses the best IC50 for NetMHCpan and highest DeepImmuno score across mutation-containing 9/10-mers and actual HLA-A/B alleles, with **no binding gate**. The equal-weight ensemble averages the two **mutation-level fractional ranks**, with average ranks for ties. This differs from the standard pipeline's pair-level combination. Final selection ties use genomic mutation ID, without labels.
 
 Recall counts vaccine IMP components recovered by mutation identity. It does not require exact long-peptide sequence recovery. The broad immunogenic endpoint is any positive **week-16 CD4 or CD8 peptide response**, including expanded-cell assays; it does not require minigene, tumor, or killing evidence. Later therapy-associated responses are excluded. Both full-denominator and reconstructable-subset recall are exported. The source tables contain 98 patient/IMP components, versus 97 unique neoantigens in the paper's headline; all 98 table entries are retained, and the unresolved discrepancy is disclosed. Publication gene suffixes can be reconciled only with an exact protein consequence, unique mutation, and full vaccine peptide match to a reconstructed mutant protein.
 
@@ -107,12 +136,14 @@ Rescue follows the pinned upstream numeric-name heuristic, including table-order
 To measure immunogenicity discrimination within the reconstructable vaccine set, without a top-K cutoff:
 
 ```sh
-uv run python scripts/cohort_auc.py
+.venv/bin/python scripts/cohort_auc.py
 ```
 
-This verifies the saved cohort-score file hashes and writes a separate report, ROC plots, metrics, and target-level score/assay audit to ignored `outputs/cohort-auc/`. Each genomic mutation counts once. A positive label requires any positive week-16 CD4/CD8 peptide assay. A negative label requires explicit measurements in both cell types and all relevant observations negative; incomplete or ambiguous evidence is excluded. Non-vaccine mutations are not labeled negative. Model and ensemble scores are reused unchanged, including the ensemble's normalization over all discovery candidates.
+This verifies the saved cohort-score file hashes and writes a separate report, ROC plots, metrics, and target-level score/assay audit to ignored `data/outputs/cohort-auc/`. Each genomic mutation counts once. A positive label requires any positive week-16 CD4/CD8 peptide assay. A negative label requires explicit measurements in both cell types and all relevant observations negative; incomplete or ambiguous evidence is excluded. Non-vaccine mutations are not labeled negative. Model and ensemble scores are reused unchanged, including the ensemble's normalization over all discovery candidates.
 
 ROC AUC gives equal scores half credit and is undefined if either class is absent. Summaries include the mean patient AUC and an AUC weighted by the number of within-patient positive–negative pairs; the latter never compares scores between patients. These metrics describe discrimination conditional on prior vaccine selection and reconstruction, with small per-patient sample sizes.
+
+The positive endpoint specifically uses the authors' **IFN-γ ELISpot peptide-response calls**: CD8 after pre-stimulation (Ott supplementary workbook 5 column O and Hu Dataset 4a column O), CD4 ex vivo (Hu Dataset 4b column J), or CD4 after pre-stimulation (column K), all at week 16. We do not recalculate positivity from spot counts. Minigene, tumor, HLA-blocking, tetramer, degranulation, pooled cytokine and later-timepoint results do not enter this label; mutant selectivity and tumor killing are not required. The AUC set and AUC values are independent of the recall budget.
 
 ## Scientific boundaries
 
@@ -146,13 +177,36 @@ Sources: [Ott et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5577644/), [
 Each run includes saved configuration, manifest, summary, variant/skip/epitope/pair/mutation tables, reconstructed proteins, proposed and actual vaccine tables, reference scores, assay observations, evaluation JSON, FASTA, and one offline HTML file with embedded Plotly. `figures/` contains SVG and PNG figures. `run_data.json` supports report regeneration.
 
 ```sh
-uv run pytest tests/test_core.py tests/test_network.py
-uv run python scripts/validate_cohort.py --live  # first six-patient inference
-uv run python scripts/validate_cohort.py         # cached-only replay
-uv run pytest --basetemp outputs/test-tmp
-uv run ruff check src tests scripts/validate_cohort.py
+.venv/bin/python -m pip install -e '.[test]'
+.venv/bin/python -m pytest tests/test_core.py tests/test_network.py
+.venv/bin/python scripts/validate_cohort.py --live  # first six-patient inference
+.venv/bin/python scripts/validate_cohort.py         # cached-only replay
+.venv/bin/python -m pytest --basetemp data/outputs/test-tmp
+.venv/bin/python -m ruff check src tests scripts/validate_cohort.py
 ```
 
-Core tests use synthetic records and mocked HTTP responses, never live IEDB. Integration tests use fetched workbooks and existing caches, including label leakage and six-patient Textual navigation. TUI screenshots and browser-validation results are written to `outputs/validation/`. Browser checks use Playwright (`node scripts/validate_html.cjs` after installing Playwright; optionally set `CHROME_PATH`) with all non-file/data requests blocked. They exercise pagination, filters, sequence changes, pipeline controls and plotted figures.
+Core tests use synthetic records and mocked HTTP responses, never live IEDB. Integration tests use fetched workbooks and existing caches, including label leakage and six-patient Textual navigation. TUI screenshots and browser-validation results are written to `data/outputs/validation/`. Browser checks use Playwright (`node scripts/validate_html.cjs` after installing Playwright; optionally set `CHROME_PATH`) with all non-file/data requests blocked. They exercise pagination, filters, sequence changes, pipeline controls and plotted figures.
 
-The six-patient run index is `outputs/six-patient-validation.json`. Reports are standalone files: move an individual `report.html` anywhere and open it without a server or network connection.
+The six-patient run index is `data/outputs/six-patient-validation.json`. Reports are standalone files: move an individual `report.html` anywhere and open it without a server or network connection.
+
+## Optional BigMHC IM comparison
+
+The isolated pilot in `scripts/bigmhc_pilot.py` compares BigMHC **IM** (immunogenicity, not the EL presentation model), DeepImmuno, NetMHCpan, and the two equal-weight rank ensembles on the existing six-patient cohort. It leaves the application defaults and DeepImmuno implementation intact. Every regenerated baseline target, peptide–HLA count, score, cost and rank must match the saved cohort before inference. The pilot retains the reference-proteome filter, mutation-containing 9/10-mers, actual patient HLA-A/B, best-pair mutation aggregation and within-patient ranking. All 19 distinct patient alleles have exact BigMHC pseudosequences; the adapter forbids upstream's fuzzy HLA substitution.
+
+**This is a contaminated retrospective scoring comparison.** The released BigMHC IM training set contains exact retained candidate peptide–HLA pairs for 69 of the 72 evaluated vaccine mutations; training plus validation covers 71/72. Excluding those leaves one positive and no negative, so no uncontaminated AUC can be estimated. Results cannot establish that BigMHC improves independent prediction. The released pair labels also differ from this benchmark's broad week-16 CD4/CD8 peptide-response endpoint. Neither endpoint establishes tumor recognition or killing.
+
+Create a separate Python 3.11 runtime; approximately 2.4 GB of official model files are downloaded into the ignored output directory. The BigMHC Academic License permits noncommercial use, including personal non-profit research; commercial use requires a separate license. Source and all seven ensemble members are pinned to `199e890fa69a63646730bcecea0a520e08ca4f02`, verified against official Git blob hashes, and recorded with SHA-256 checksums. No model files are committed.
+
+```sh
+python3.11 -m venv data/outputs/bigmhc-pilot/runtime
+data/outputs/bigmhc-pilot/runtime/bin/python -m pip install -r requirements-bigmhc.txt
+.venv/bin/python scripts/setup_bigmhc.py
+# First save datasets.zip from the released research data as:
+# data/outputs/bigmhc-pilot/audit/datasets.zip
+.venv/bin/python scripts/audit_bigmhc_overlap.py
+.venv/bin/python scripts/bigmhc_pilot.py --device cpu --batch-size 512
+```
+
+The saved baseline in `data/outputs/cohort-recall` and its validated binding/DeepImmuno caches must exist first. On Apple Silicon, use `--device mps --batch-size 512` for the optional local GPU runner. It changes only the official acceleration hook; the original model code, weights, seven-sigmoid averaging, batching and output are unchanged. The CLI log still prints `devices: []` because its CPU/CUDA argument parser is reused; `inference/inference.json` records the actual MPS device. CPU and GPU floating-point scores can differ slightly. Run `.venv/bin/python scripts/validate_bigmhc_runtime.py` after an MPS run to compare all mutation-winning pairs plus a reproducible sample across every allele/length stratum against the original CPU CLI, and check top-20/AUC agreement after rescoring the winners. This is a numerical validation subset, not a full CPU replay.
+
+Outputs are isolated under `data/outputs/bigmhc-pilot/`: `report.html`, all target rankings, top-20 membership shifts, per-patient and aggregate recall/recognition/AUC, score distributions, coverage, original inference input/output/log, runtime/model provenance, and `audit/overlap.json`. Recognition fractions apply only to tested vaccine components overlapping a method's top 20; unvaccinated candidates are not treated as negative. AUC uses all 72 reconstructable tested mutations (45 positive, 27 negative), with macro and within-patient pair-weighted summaries. Scores are research outputs, not calibrated response probabilities.

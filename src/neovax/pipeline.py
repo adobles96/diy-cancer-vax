@@ -10,10 +10,11 @@ from neovax import __version__
 from neovax.data import actual_vaccine, load_reference, patient_data, verify_sources
 from neovax.deepimmuno import predict_immunogenicity
 from neovax.evaluation import annotate_membership, assay_matrix, evaluate, rescore_historical
-from neovax.iedb import METHOD, BindingCache, Cancelled, InferenceError, contexts_for, predict
+from neovax.iedb import METHOD, BindingCache, Cancelled, InferenceError, predict
 from neovax.io import digest, write_csv, write_json
-from neovax.peptides import coverage, enumerate_epitopes, reconstruct
+from neovax.peptides import coverage, enumerate_epitopes, epitope_sequences, reconstruct
 from neovax.ranking import rank_epitopes, summarize_mutations
+from neovax.reference_filter import filter_reference_peptides, reference_filter_source
 from neovax.report import render_report
 from neovax.selection import select_vaccine
 
@@ -58,18 +59,30 @@ def execute(config, run_dir, manifest, progress, cancel):
     progress(f"Patient {config.patient}: normalizing published variants and observations")
     variants, alleles, published, assays = patient_data(config.data_dir, config.patient)
     manifest["sources"] = verify_sources(Path(config.data_dir))
-    proteins, skipped = reconstruct(variants, load_reference(config.data_dir))
+    reference = load_reference(config.data_dir)
+    proteins, skipped = reconstruct(variants, reference)
     epitopes = enumerate_epitopes(proteins, config.lengths)
+    progress("Filtering candidate short peptides against all reference protein sequences")
+    epitopes, filtered, filter_summary = filter_reference_peptides(epitopes, reference)
+    filter_summary["source"] = reference_filter_source()
+    manifest["reference_filter"] = filter_summary
+    progress(f"Reference filter removed {filter_summary['unique_peptides_removed']} distinct peptides")
     counts = coverage(variants, proteins, skipped, epitopes)
+    counts.update(
+        reference_matched_peptides_removed=filter_summary["unique_peptides_removed"],
+        reference_matched_associations_removed=len(filtered),
+    )
     progress(f"Reconstructed {len(proteins)} missense rows · {len(epitopes)} epitope associations")
     write_csv(run_dir / "variants.csv", variants)
     write_csv(run_dir / "skipped_variants.csv", skipped)
     write_csv(run_dir / "reconstructed_proteins.csv", proteins)
+    write_csv(run_dir / "reference_filtered_epitopes.csv", filtered)
+    write_json(run_dir / "reference_filter.json", filter_summary)
     cache = BindingCache(config.cache_dir)
     try:
         predictions, workload, status, errors = predict(
             cache,
-            contexts_for(proteins, config.lengths),
+            epitope_sequences(epitopes),
             alleles,
             config.lengths,
             config.batch_size,
@@ -186,6 +199,7 @@ def execute(config, run_dir, manifest, progress, cancel):
         "assay_states": dict(Counter(r["result"] for r in assays)),
         "errors": errors,
         "interpretation": evaluations["interpretation"],
+        "reference_filter": filter_summary,
         "run_directory": str(run_dir),
     }
     result = {
@@ -203,6 +217,7 @@ def execute(config, run_dir, manifest, progress, cancel):
         "evaluations": evaluations,
         "historical_rescore": historical_rescore,
         "skipped": skipped,
+        "reference_filtered": filtered,
     }
     for name, rows in [
         ("epitopes", ranked),

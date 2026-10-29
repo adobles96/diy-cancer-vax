@@ -1,5 +1,7 @@
 .venv/
-outputs/
+.neovax.json
+/data/raw/
+/data/outputs/
 __pycache__/
 *.py[cod]
 *.egg-info/

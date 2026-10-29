@@ -14,8 +14,8 @@
   "per_mutation_cap": 1,
   "cached_only": true,
   "batch_size": 128,
-  "data_dir": "outputs/data/raw",
-  "cache_dir": "outputs/cache",
-  "output_dir": "outputs/runs",
+  "data_dir": "data/raw",
+  "cache_dir": "data/outputs/cache",
+  "output_dir": "data/outputs/runs",
   "deepimmuno_manifest": null
 }

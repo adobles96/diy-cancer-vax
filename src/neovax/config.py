@@ -18,9 +18,9 @@ class Config:
     per_mutation_cap: int = 1
     cached_only: bool = False
     batch_size: int = 128
-    data_dir: str = "outputs/data/raw"
-    cache_dir: str = "outputs/cache"
-    output_dir: str = "outputs/runs"
+    data_dir: str = "data/raw"
+    cache_dir: str = "data/outputs/cache"
+    output_dir: str = "data/outputs/runs"
     deepimmuno_manifest: str | None = None
 
     def __post_init__(self):

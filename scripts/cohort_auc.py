@@ -1,4 +1,4 @@
-"""Run: uv run python scripts/cohort_auc.py (uses the saved cohort scores)."""
+"""Run: .venv/bin/python scripts/cohort_auc.py (uses the saved cohort scores)."""
 
 import argparse
 import csv
@@ -22,12 +22,16 @@ LABELS = {"netmhcpan": "NetMHCpan", "deepimmuno": "DeepImmuno", "mean_ensemble":
 METHODOLOGY = """Evaluation is restricted to actual vaccinated mutations with independently reconstructed
 and scored candidates and usable week-16 peptide-response labels. Each genomic mutation counts once.
 Positive = any positive CD4 or CD8 peptide response, ex vivo or after expansion, from any associated IMP.
+Specifically: IFN-γ ELISpot against peptide-pulsed autologous antigen-presenting cells, using CD8
+cells after pre-stimulation, CD4 responses directly ex vivo, or CD4 cells after pre-stimulation.
+We use the authors' positive/negative calls; we do not impose a new threshold on spot counts.
 Negative = both CD4 and CD8 have measurements for each associated IMP, and all eligible measurements
 are explicitly negative. Missing, not-determined, and ambiguous observations do not become negatives.
 Minigene, tumor, and later-timepoint observations do not enter the label. This is observed response
 under the reported assays, not proof of biological non-immunogenicity.
 Scores are unchanged from the previous cohort analysis: minimum NetMHCpan IC50 or maximum DeepImmuno
 score over all reconstructed mutation-containing 9/10-mer–HLA-A/B pairs for each mutation.
+The candidate set inherits the reference-proteome exact-match filter recorded in the input provenance.
 The ensemble averages the two within-patient fractional ranks over the full discovery candidate set;
 it is not refitted or renormalized on the vaccine evaluation set. No top-K or binding cutoff is used.
 These are mutation-level scores; the best short peptide need not be the experimentally tested peptide.
@@ -90,9 +94,20 @@ def render(output, metrics, aggregate):
         body.append(f"<tr><th>{label}</th><td>{total_positive} / {total_negative}</td>{cells}</tr>")
     page = f"""<!doctype html><html lang="en"><meta charset="utf-8"><title>NeoVax immunogenicity ROC AUC</title>
 <style>body{{font:16px/1.5 system-ui;max-width:1100px;margin:40px auto;padding:0 24px;color:#223042}}table{{border-collapse:collapse;width:100%}}td,th{{text-align:left;padding:12px;border-bottom:1px solid #ddd}}pre{{white-space:pre-wrap;background:#f2f5f8;padding:20px}}img{{width:100%}}</style>
-<h1>Immunogenicity ROC AUC</h1><p>Actual vaccinated, reconstructable mutations · Any positive week-16 CD4/CD8 peptide response · No top-50 cutoff</p>
+<h1>Immunogenicity ROC AUC</h1><p>Actual vaccinated, reconstructable mutations · Any positive week-16 CD4/CD8 peptide response · No top-K cutoff</p>
 <table><thead><tr><th>Patient</th><th>Positive / negative</th><th>NetMHCpan</th><th>DeepImmuno</th><th>Mean ensemble</th></tr></thead><tbody>{"".join(body)}</tbody></table>
 <p>AUC 0.5 is chance-level ordering; 1 is perfect ordering. AUC is not the fraction of binary predictions classified correctly.</p>
+<h2>What counts as immunogenic?</h2>
+<p>A mutation is positive if <strong>any associated peptide has an author-reported positive week-16 IFN-γ ELISpot response</strong> in one of these measurements:</p>
+<table><thead><tr><th>Response</th><th>Condition</th><th>Source columns</th></tr></thead><tbody>
+<tr><td>CD8</td><td>After peptide pre-stimulation / cell expansion; response to peptide-pulsed autologous antigen-presenting cells</td><td>Ott 2017 supplementary workbook 5, O; Hu 2021 Dataset 4a, O</td></tr>
+<tr><td>CD4</td><td>Directly ex vivo, without prior cell expansion; response to added peptide</td><td>Hu 2021 Dataset 4b, J</td></tr>
+<tr><td>CD4</td><td>After peptide pre-stimulation / cell expansion; response to peptide-pulsed autologous antigen-presenting cells</td><td>Hu 2021 Dataset 4b, K</td></tr>
+</tbody></table>
+<p>IFN-γ ELISpot detects cells secreting interferon-gamma in response to peptide exposure. We use the authors' binary calls, without applying a new spot-count threshold. Repeated records of the same assay are deduplicated.</p>
+<p>Minigene recognition, autologous tumor recognition, HLA blocking, tetramer staining, degranulation, pooled cytokine assays, and later/post-checkpoint-treatment observations do not enter this endpoint. A positive label does not require mutant-versus-wild-type selectivity or demonstrated tumor-cell killing.</p>
+<p>The AUC set contains {total_positive} positive and {total_negative} negative reconstructed vaccine mutations. Negatives require explicit negative measurements in both CD4 and CD8; missing or ambiguous measurements are excluded.</p>
+<p>Sources: <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5577644/">Ott et al. 2017</a> and <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8273876/">Hu et al. 2021</a>.</p>
 <img src="roc-curves.svg" alt="ROC curves and AUC for each of six patients">
 <h2>Methods and interpretation</h2><pre>{html.escape(METHODOLOGY)}</pre>
 <p><a href="metrics.csv">Per-patient metrics</a> · <a href="labeled-targets.csv">Target scores and assay evidence</a> · <a href="excluded.csv">Excluded components</a> · <a href="analysis.json">Provenance and full results</a></p></html>"""
@@ -101,8 +116,8 @@ def render(output, metrics, aggregate):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", default="outputs/cohort-recall")
-    parser.add_argument("--output-dir", default="outputs/cohort-auc")
+    parser.add_argument("--input-dir", default="data/outputs/cohort-recall")
+    parser.add_argument("--output-dir", default="data/outputs/cohort-auc")
     args = parser.parse_args()
     source, output = Path(args.input_dir).resolve(), Path(args.output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)

@@ -5,8 +5,8 @@ const {pathToFileURL} = require('node:url');
 const {chromium} = require('playwright');
 
 async function main() {
-  const summaries = JSON.parse(fs.readFileSync(process.argv[2] || 'outputs/six-patient-validation.json', 'utf8'));
-  const output = path.resolve('outputs/validation');
+  const summaries = JSON.parse(fs.readFileSync(process.argv[2] || 'data/outputs/six-patient-validation.json', 'utf8'));
+  const output = path.resolve('data/outputs/validation');
   fs.mkdirSync(output, {recursive: true});
   const browser = await chromium.launch({headless: true, executablePath: process.env.CHROME_PATH || undefined});
   const checks = [];

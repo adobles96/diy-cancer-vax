@@ -9,7 +9,7 @@ from neovax.tui import DetailScreen, NeoVaxApp
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
-        not Path("outputs/cache/binding.sqlite").exists(), reason="Patient prediction cache required"
+        not Path("data/outputs/cache/binding.sqlite").exists(), reason="Patient prediction cache required"
     ),
 ]
 
@@ -44,6 +44,12 @@ async def test_patient_config_run_results_navigation(patient, tmp_path):
         await pilot.press("enter")
         assert isinstance(app.screen, DetailScreen)
         await pilot.press("escape")
+        app.query_one("#results-tabs", TabbedContent).active = "tab-reference_filtered"
+        await pilot.pause(0.1)
+        assert app.query_one("#table-reference_filtered", DataTable).row_count == min(
+            200, len(app.result["reference_filtered"])
+        )
+        assert app.result["manifest"]["reference_filter"]["reference_protein_records"] > 0
         app.query_one("#results-tabs", TabbedContent).active = "tab-assays"
         await pilot.pause(0.1)
         assert app.query_one("#table-assays", DataTable).row_count > 0
@@ -52,8 +58,8 @@ async def test_patient_config_run_results_navigation(patient, tmp_path):
         assert app.query_one("#table-assays", DataTable).row_count == 0
         app.query_one("#filter-text", Input).value = ""
         await pilot.pause(0.1)
-        Path("outputs/validation").mkdir(parents=True, exist_ok=True)
-        app.save_screenshot(f"tui-patient-{patient}.svg", "outputs/validation")
+        Path("data/outputs/validation").mkdir(parents=True, exist_ok=True)
+        app.save_screenshot(f"tui-patient-{patient}.svg", "data/outputs/validation")
 
 
 async def test_invalid_configuration_and_narrow_layout(tmp_path):
@@ -65,4 +71,4 @@ async def test_invalid_configuration_and_narrow_layout(tmp_path):
         await pilot.press("ctrl+r")
         assert not app.running_pipeline
         assert "15–30" in str(app.query_one("#config-error").render())
-        app.save_screenshot("tui-narrow.svg", "outputs/validation")
+        app.save_screenshot("tui-narrow.svg", "data/outputs/validation")

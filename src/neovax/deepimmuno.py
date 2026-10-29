@@ -94,6 +94,25 @@ def training_overlap(manifest, sequences):
     }
 
 
+def cached_prediction_subset(directory, manifest, pairs, representations):
+    """Reuse a validated model/allele-compatible batch after candidate filtering."""
+    wanted = set(pairs)
+    if not wanted:
+        return []
+    for path in sorted(Path(directory).glob("*.json")):
+        saved = json.loads(path.read_text())
+        model = saved["model"]
+        if model["commit"] != manifest["commit"] or model["files"] != manifest["files"]:
+            continue
+        mapping = saved.get("allele_representations", {})
+        if any(mapping.get(allele, allele) != target for allele, target in representations.items()):
+            continue
+        records = [r for r in saved["predictions"] if (r["peptide"], r["allele"]) in wanted]
+        if {(r["peptide"], r["allele"]) for r in records} == wanted:
+            return records
+    return None
+
+
 def predict_immunogenicity(
     epitopes, alleles, config, cancel=lambda: False, progress=lambda message: None, *, allow_hla_rescue=False
 ):
@@ -109,6 +128,8 @@ def predict_immunogenicity(
     if cache_path.exists():
         records = json.loads(cache_path.read_text())["predictions"]
     else:
+        records = cached_prediction_subset(cache_path.parent, manifest, pairs, representations)
+    if records is None:
         if config.cached_only:
             raise InferenceError("DeepImmuno scores are not cached; binding results remain available")
         progress(f"DeepImmuno: {len(pairs)} peptide–HLA pairs in an isolated process")

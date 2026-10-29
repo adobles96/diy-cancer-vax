@@ -19,7 +19,12 @@ def assay_labels(components, targets, observations):
     for component in components:
         mutation = component["mutation_id"]
         if mutation not in by_target:
-            excluded.append({**component, "exclusion_reason": "No reconstructed, scored mutation target"})
+            excluded.append(
+                {
+                    **component,
+                    "exclusion_reason": "No retained, scored mutation target: reconstruction unavailable or all candidate peptides filtered",
+                }
+            )
             continue
         groups[mutation].append(component)
     labeled = []

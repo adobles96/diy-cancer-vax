@@ -1,4 +1,4 @@
-"""Run: uv run python scripts/cohort_recall.py --rescue-unknown-hla"""
+"""Run: .venv/bin/python scripts/cohort_recall.py --rescue-unknown-hla"""
 
 import argparse
 import datetime
@@ -12,17 +12,21 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from neovax.cohort import METHODS, audit_components, rank_targets, recall_at_k
+from neovax.cohort import DEFAULT_RECALL_K, METHODS, audit_components, rank_targets, recall_at_k
 from neovax.config import Config
 from neovax.data import actual_vaccine, load_reference, patient_data, verify_sources
 from neovax.deepimmuno import predict_immunogenicity
 from neovax.iedb import METHOD, BindingCache
 from neovax.io import digest, write_csv, write_json
 from neovax.peptides import enumerate_epitopes, reconstruct
+from neovax.reference_filter import filter_reference_peptides, reference_filter_source
 
 LABELS = {"netmhcpan": "NetMHCpan", "deepimmuno": "DeepImmuno", "mean_ensemble": "Mean ensemble"}
-METHODOLOGY = """Top 50 distinct genomic mutation targets from independently reconstructed missense candidates,
+METHODOLOGY = f"""Top {DEFAULT_RECALL_K} distinct genomic mutation targets from independently reconstructed missense candidates,
+representing a budget of one vaccine component per mutation, not 20 overlapping short epitopes.
 using all mutation-containing 9/10-mers and the patient's HLA-A/B alleles. No binding threshold.
+Short candidates matching any protein in the pinned hg19 reference proteome are excluded before scoring
+and ranking. Matching transcript IDs and positions are recorded in reference-filtered-epitopes.csv.
 NetMHCpan BA 4.1 target score = minimum IC50 over peptide–HLA pairs. DeepImmuno target score = maximum
 immunogenicity score over those pairs. Each model's target scores are converted to fractional ranks
 within the patient, averaging ties (0 best, 1 worst); ensemble cost is their arithmetic mean.
@@ -69,11 +73,11 @@ def render(output, metrics, pooled, metadata):
         )
         ax.spines[["top", "right"]].set_visible(False)
         ax.grid(axis="y", alpha=0.15)
-    axes[0].set_ylabel("Recall at 50 targets (%) · full denominator")
+    axes[0].set_ylabel(f"Recall at {DEFAULT_RECALL_K} targets (%) · full denominator")
     axes[1].legend(frameon=False, loc="upper right")
-    fig.suptitle("NeoVax: top-50 target recovery", fontsize=16)
-    fig.savefig(output / "recall-at-50.png", dpi=180)
-    fig.savefig(output / "recall-at-50.svg")
+    fig.suptitle(f"NeoVax: top-{DEFAULT_RECALL_K} target recovery", fontsize=16)
+    fig.savefig(output / f"recall-at-{DEFAULT_RECALL_K}.png", dpi=180)
+    fig.savefig(output / f"recall-at-{DEFAULT_RECALL_K}.svg")
     plt.close(fig)
     tables = []
     for endpoint in ["vaccine", "immunogenic"]:
@@ -99,10 +103,17 @@ def render(output, metrics, pooled, metadata):
             f"<h2>{'Vaccine component recall' if endpoint == 'vaccine' else 'Immunogenic component recall'}</h2><table><thead><tr><th>Patient</th><th>NetMHCpan</th><th>DeepImmuno</th><th>Mean ensemble</th><th>Reconstructable</th></tr></thead><tbody>{''.join(body)}</tbody></table>"
         )
     rescue = {f"P{p['patient']}": p["deepimmuno"]["rescued_alleles"] for p in metadata}
+    filter_rows = "".join(
+        f"<tr><th>P{p['patient']}</th><td>{p['reference_filter']['unique_peptides_before']}</td><td>{p['reference_filter']['unique_peptides_removed']}</td><td>{p['reference_filter']['unique_peptides_after']}</td><td>{len(p['reference_filter']['mutations_fully_removed'])}</td></tr>"
+        for p in metadata
+    )
     page = f"""<!doctype html><html lang="en"><meta charset="utf-8"><title>NeoVax cohort recall</title>
 <style>body{{font:16px/1.5 system-ui;max-width:1200px;margin:40px auto;padding:0 24px;color:#223042}}table{{border-collapse:collapse;width:100%;margin:20px 0 36px}}td,th{{text-align:left;padding:12px;border-bottom:1px solid #ddd}}small{{display:block;color:#637080;font-size:12px}}pre{{white-space:pre-wrap;background:#f2f5f8;padding:20px}}img{{width:100%}}h1,h2{{color:#163a5f}}</style>
-<h1>NeoVax cohort recall at 50</h1><p>Six patients · NetMHCpan BA 4.1 · DeepImmuno with disclosed HLA rescue · equal-weight rank ensemble</p>
-<img src="recall-at-50.svg" alt="Recall by patient and model">{"".join(tables)}
+<h1>NeoVax cohort recall at {DEFAULT_RECALL_K}</h1><p>Six patients · {DEFAULT_RECALL_K} distinct mutation targets per method · NetMHCpan BA 4.1 · DeepImmuno with disclosed HLA rescue · equal-weight rank ensemble</p>
+<img src="recall-at-{DEFAULT_RECALL_K}.svg" alt="Recall by patient and model">{"".join(tables)}
+<h2>Reference-proteome filter</h2><p>Exact matches to any sequence in the pinned hg19 reference protein set are excluded before scoring and ranking. These counts refer to distinct short peptide sequences per patient; multiple windows or transcripts do not multiply the count.</p>
+<table><thead><tr><th>Patient</th><th>Before</th><th>Removed</th><th>Retained</th><th>Mutations losing all candidates</th></tr></thead><tbody>{filter_rows}</tbody></table>
+<p><a href="reference-filtered-epitopes.csv">Excluded peptides with matching reference transcripts and positions</a> · <a href="reference-filter-summary.json">Filter counts and reference provenance</a>. This is a reference-proteome approximation, not a patient-specific germline screen.</p>
 <h2>Definitions and limits</h2><pre>{html.escape(METHODOLOGY)}</pre>
 <h2>Actual HLA → substituted DeepImmuno HLA</h2><pre>{html.escape(json.dumps(rescue, indent=2))}</pre>
 <p>Binding predictions always use the actual HLA. A rescued DeepImmuno score is an approximation.</p>
@@ -114,22 +125,32 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rescue-unknown-hla", action="store_true")
     parser.add_argument("--cached-only", action="store_true")
-    parser.add_argument("--output-dir", default="outputs/cohort-recall")
+    parser.add_argument("--output-dir", default="data/outputs/cohort-recall")
     args = parser.parse_args()
     output = Path(args.output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)
     metrics, curves, all_targets, all_components, metadata = [], [], [], [], []
+    all_filtered, filter_summaries = [], []
     for patient in range(1, 7):
         print(f"Patient {patient}: reconstructing independent candidate targets", flush=True)
         config = Config(
             patient=patient,
             threshold=None,
             cached_only=args.cached_only,
-            deepimmuno_manifest="outputs/models/deepimmuno/manifest.json",
+            deepimmuno_manifest="data/outputs/models/deepimmuno/manifest.json",
         )
         variants, alleles, published, assays = patient_data(config.data_dir, patient)
-        proteins, skipped = reconstruct(variants, load_reference(config.data_dir))
+        reference = load_reference(config.data_dir)
+        proteins, skipped = reconstruct(variants, reference)
         epitopes = enumerate_epitopes(proteins, config.lengths)
+        epitopes, filtered, filter_summary = filter_reference_peptides(epitopes, reference)
+        filter_summary.update(patient=patient, source=reference_filter_source())
+        all_filtered.extend(filtered)
+        filter_summaries.append(filter_summary)
+        print(
+            f"Reference filter: {filter_summary['unique_peptides_removed']} distinct peptides removed",
+            flush=True,
+        )
         cache = BindingCache(config.cache_dir)
         try:
             binding = cache.lookup(alleles)
@@ -164,6 +185,7 @@ def main():
                 "alleles": alleles,
                 "deepimmuno": provenance,
                 "skipped_variants": skipped,
+                "reference_filter": filter_summary,
             }
         )
         write_json(
@@ -191,12 +213,14 @@ def main():
     result = {
         "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "methodology": METHODOLOGY,
+        "recall_k": DEFAULT_RECALL_K,
         "binding_model": METHOD,
         "allow_hla_rescue": args.rescue_unknown_hla,
         "sources": verify_sources(Path(config.data_dir)),
         "patients": metadata,
         "metrics": metrics,
         "pooled": pooled,
+        "reference_filter": filter_summaries,
     }
     for name, rows in [
         ("metrics", metrics),
@@ -204,9 +228,11 @@ def main():
         ("target-rankings", all_targets),
         ("vaccine-component-audit", all_components),
         ("recall-curves", curves),
+        ("reference-filtered-epitopes", all_filtered),
     ]:
         write_csv(output / f"{name}.csv", rows)
     write_json(output / "analysis.json", result)
+    write_json(output / "reference-filter-summary.json", filter_summaries)
     render(output, metrics, pooled, metadata)
     write_json(
         output / "artifact-hashes.json",

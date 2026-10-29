@@ -10,8 +10,8 @@ from neovax.data import actual_vaccine, load_reference, patient_data
 from neovax.deepimmuno import validate_model
 from neovax.peptides import reconstruct
 
-DATA = Path("outputs/data/raw")
-CACHE = Path("outputs/cache")
+DATA = Path("data/raw")
+CACHE = Path("data/outputs/cache")
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
@@ -119,7 +119,7 @@ def test_label_leakage(legacy_run, tmp_path, monkeypatch):
 
 
 def test_deepimmuno_exact_allele_coverage():
-    path = Path("outputs/models/deepimmuno/manifest.json")
+    path = Path("data/outputs/models/deepimmuno/manifest.json")
     if not path.exists():
         pytest.skip("Optional model not fetched")
     for patient in range(1, 7):
@@ -132,7 +132,7 @@ def test_deepimmuno_exact_allele_coverage():
 
 
 def test_failed_optional_model_preserves_binding_without_combined_metrics(tmp_path):
-    path = Path("outputs/models/deepimmuno/manifest.json")
+    path = Path("data/outputs/models/deepimmuno/manifest.json")
     if not path.exists():
         pytest.skip("Optional model not fetched")
     result = pipeline.run_pipeline(
@@ -154,7 +154,7 @@ def test_failed_optional_model_preserves_binding_without_combined_metrics(tmp_pa
 
 @pytest.mark.parametrize("patient", range(1, 7))
 def test_six_complete_export_runs(patient):
-    summary_path = Path("outputs/six-patient-validation.json")
+    summary_path = Path("data/outputs/six-patient-validation.json")
     if not summary_path.exists():
         pytest.skip("Six-patient validation run has not been created")
     summaries = json.loads(summary_path.read_text())

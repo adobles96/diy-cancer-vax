@@ -120,7 +120,7 @@ def load_catalog(directory):
     directory = Path(directory)
     verify_sources(directory)
     cache_key = stable_id("catalog-v1", source_manifest())
-    normalized = directory.parent / f"normalized-{cache_key}.json"
+    normalized = directory.parent / "outputs" / "cache" / f"normalized-{cache_key}.json"
     if normalized.exists():
         saved = json.loads(normalized.read_text())
         return (

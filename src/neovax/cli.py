@@ -1,5 +1,7 @@
 import argparse
+import json
 import signal
+import sys
 import threading
 from dataclasses import replace
 from pathlib import Path
@@ -8,12 +10,47 @@ from rich.console import Console
 from rich.table import Table
 
 from neovax.config import Config
-from neovax.data import fetch_data
+from neovax.data import fetch_data, source_manifest, verify_sources
 from neovax.deepimmuno import setup_model
 from neovax.iedb import BindingCache
+from neovax.io import write_json
 from neovax.pipeline import run_pipeline
 from neovax.report import render_report
 from neovax.tui import NeoVaxApp
+
+
+def prepare_inputs(config, data_root, explicit_config, console):
+    settings_path = Path(".neovax.json")
+    remember = data_root is not None
+    if data_root is None and not explicit_config and settings_path.exists():
+        data_root = Path(json.loads(settings_path.read_text())["data_root"])
+    if data_root is None and not explicit_config:
+        data_root = Path("data")
+        missing = any(not (data_root / "raw" / source["file"]).exists() for source in source_manifest())
+        if missing:
+            if not sys.stdin.isatty():
+                raise ValueError("Choose a data directory with --data-root PATH when running non-interactively.")
+            console.print("Source workbooks and reference proteins require approximately 255 MB.")
+            answer = console.input("Data directory (will contain raw/ and outputs/) [data]: ", markup=False).strip()
+            data_root = Path(answer) if answer else data_root
+            remember = True
+    if data_root is not None:
+        data_root = data_root.expanduser().resolve()
+        config = replace(
+            config,
+            data_dir=str(data_root / "raw"),
+            cache_dir=str(data_root / "outputs/cache"),
+            output_dir=str(data_root / "outputs/runs"),
+        )
+    console.print(f"Verifying source data in {config.data_dir}", markup=False)
+    if config.cached_only:
+        verify_sources(Path(config.data_dir))
+    else:
+        console.print("Missing or changed source files will be downloaded; valid files are reused.")
+        fetch_data(config.data_dir)
+    if remember:
+        write_json(settings_path, {"data_root": str(data_root)})
+    return config
 
 
 def print_summary(result, console=None):
@@ -56,16 +93,19 @@ def main():
         command.add_argument("--config", type=Path)
         command.add_argument("--patient", type=int, choices=range(1, 7))
         command.add_argument("--cached-only", action="store_true", default=None)
+        command.add_argument(
+            "--data-root", type=Path, help="Parent of raw/ and outputs/; remembered for runs without --config"
+        )
     fetch = commands.add_parser("fetch-data")
-    fetch.add_argument("--data-dir", default="outputs/data/raw")
+    fetch.add_argument("--data-dir", default="data/raw")
     fetch.add_argument("--from-directory", type=Path)
     report = commands.add_parser("report")
     report.add_argument("run_directory", type=Path)
     legacy = commands.add_parser("import-cache")
     legacy.add_argument("directory", type=Path)
-    legacy.add_argument("--cache-dir", default="outputs/cache")
+    legacy.add_argument("--cache-dir", default="data/outputs/cache")
     deep = commands.add_parser("setup-deepimmuno")
-    deep.add_argument("--directory", default="outputs/models/deepimmuno")
+    deep.add_argument("--directory", default="data/outputs/models/deepimmuno")
     deep.add_argument(
         "--python", required=True, help="Python executable in a separate TensorFlow 2.15.1 environment"
     )
@@ -90,6 +130,10 @@ def main():
             key: getattr(args, key) for key in ["patient", "cached_only"] if getattr(args, key) is not None
         }
         config = replace(config, **overrides)
+        try:
+            config = prepare_inputs(config, args.data_root, args.config is not None, console)
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
         if args.command == "tui":
             app = NeoVaxApp(config)
             app.run()

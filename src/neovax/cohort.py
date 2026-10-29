@@ -5,6 +5,7 @@ from collections import defaultdict
 from neovax.ranking import fractional_ranks
 
 METHODS = ("netmhcpan", "deepimmuno", "mean_ensemble")
+DEFAULT_RECALL_K = 20
 
 
 def rank_targets(epitopes, alleles, binding, immunogenicity, representations):
@@ -90,7 +91,7 @@ def audit_components(vaccine, proteins, assays):
     return result
 
 
-def recall_at_k(targets, components, k=50):
+def recall_at_k(targets, components, k=DEFAULT_RECALL_K):
     candidate_ids = {r["mutation_id"] for r in targets}
     results = []
     for method in METHODS:
