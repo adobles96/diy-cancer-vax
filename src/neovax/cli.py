@@ -85,9 +85,6 @@ def patient_settings(console):
     lengths = Prompt.ask("Epitope lengths", choices=["9", "10", "both"], default="both", console=console)
     budget = ask_integer(console, "Maximum mutation targets", 20, 1, 100)
     long_length = ask_integer(console, "Long-peptide length", 25, 15, 30)
-    console.print(
-        "Keep peptide–HLA pairs with predicted IC50 below the cutoff. Lower = stricter binding filter."
-    )
     while True:
         gate = FloatPrompt.ask("pMHC binding affinity cutoff (IC50, nM; 10–500)", default=500.0, console=console)
         if 10 <= gate <= 500:
